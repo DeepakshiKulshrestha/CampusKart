@@ -7,7 +7,14 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "db:ping": "node src/scripts/ping.js",
+    "db:seed": "node src/scripts/seed.js",
+    "db:seed:large": "node src/scripts/seed.js --products=500",
+    "db:indexes": "node src/scripts/syncIndexes.js",
+    "db:loadtest": "node src/scripts/loadTest.js",
+    "db:verify-images": "node src/scripts/verifyImages.js",
+    "cloudinary:ping": "node src/scripts/cloudinaryPing.js"
   },
   "keywords": [],
   "author": "",
