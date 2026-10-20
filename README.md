@@ -128,16 +128,3 @@ Datasets, manifests, trained model artifacts, and the packaged model bundle are 
 
 The Dockerfile packages the ML API only; this branch does not contain an integrated/deployed full marketplace. Production use needs real transaction and reviewed fraud outcomes, model governance, secrets, persistent artifact hosting, operational monitoring, and Node/backend integration. Synthetic outputs should remain clearly labeled suggestions/review signals.
 
-## Weekly Roshni work log
-
-- **Week 1:** FastAPI service skeleton, health endpoint, initial synthetic generator and reproducible manifest.
-- **Week 2:** Price-model training and versioned artifacts.
-- **Week 3:** Candidate regressor comparison and price inference.
-- **Week 4:** Fair-price labels and documented thresholds.
-- **Week 5:** Model metrics endpoint and model version reporting.
-- **Week 6:** Product search, catalog refresh, Isolation Forest scores, and human-readable risk factors.
-- **Week 7:** Model cards, bundle checksums, API-key guard, and Docker configuration.
-- **Week 7 catalog update:** Expanded to 62 college-student item types across eight categories; added sizes, variants, pack/expiry fields, and documented manual data/model workflow.
-- **Week 7 cleanup:** Removed the temporary browser test page, local product-index write route, and local TF-IDF fallback. The API now uses the hosted embedding path and expects the Node backend to provide bounded search candidates.
-
-Real-sale retraining, product sync from Node, frontend/backend integration, cloud artifact storage, and live deployment remain team integration work.
