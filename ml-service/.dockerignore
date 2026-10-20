@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+price_prediction/model.joblib
+price_prediction/metrics.json
+semantic_search/products.json
+data/synthetic/*.csv
+data/synthetic/*.manifest.json
+model_artifacts/
+.cache/
