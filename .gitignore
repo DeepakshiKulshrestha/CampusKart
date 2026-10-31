@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.joblib
+.venv/
+venv/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Local ML artifacts
+ml-service/price_prediction/model.joblib
+ml-service/price_prediction/metrics.json
+ml-service/data/synthetic/*.csv
+ml-service/data/synthetic/*.manifest.json
+ml-service/model_artifacts/
+ml-service/.cache/
+ml-service/model_artifacts/*.zip
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
