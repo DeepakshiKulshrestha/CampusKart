@@ -1,11 +1,10 @@
+import "dotenv/config"; // must be first: imported modules (e.g. cloudinary.config.js) read process.env at load time
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
 import { authRouter, userRouter } from "./routes/authRoutes.js";
-
-dotenv.config();
+import productRouter from "./routes/productRoutes.js";
 
 const app = express();
 
@@ -19,6 +18,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
+app.use("/api/products", productRouter);
 
 // Fallback error handler (malformed JSON, unexpected DB errors, ...)
 app.use((err, req, res, next) => {

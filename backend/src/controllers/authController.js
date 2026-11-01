@@ -1,19 +1,11 @@
 import bcrypt from 'bcrypt';
 import User from '../models/User.model.js';
 import { generateToken } from '../utils/jwt.js';
-import { registerSchema, loginSchema, updateMeSchema } from '../utils/validation.js';
+import { registerSchema, loginSchema, updateMeSchema, validationError } from '../utils/validation.js';
 
 const SALT_ROUNDS = 10;
 // Compared against when the email is unknown, so login takes the same time either way
 const DUMMY_HASH = bcrypt.hashSync('campuskart-dummy-password', SALT_ROUNDS);
-
-function validationError(res, zodError) {
-  return res.status(400).json({
-    success: false,
-    message: 'Validation failed',
-    errors: zodError.issues.map((i) => ({ field: i.path.join('.'), message: i.message })),
-  });
-}
 
 // POST /api/auth/register
 async function register(req, res, next) {
