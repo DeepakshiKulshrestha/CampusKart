@@ -5,12 +5,27 @@ import helmet from "helmet";
 import { connectDB } from "./config/db.js";
 import { authRouter, userRouter } from "./routes/authRoutes.js";
 import productRouter from "./routes/productRoutes.js";
+import { apiLimiter, authLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
 
+// Comma-separated list of allowed browser origins, e.g. "http://localhost:5173,https://campuskart.app"
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    // No Origin header means a non-browser client (Postman, curl), which is allowed.
+    // A disallowed origin gets no CORS headers, so the browser blocks the response.
+    origin: (origin, callback) => callback(null, !origin || allowedOrigins.includes(origin)),
+  })
+);
 app.use(express.json());
+app.use("/api", apiLimiter);
+app.post(["/api/auth/login", "/api/auth/register"], authLimiter);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "CampusKart backend is running" });
