@@ -1,0 +1,35 @@
+
+> campusmarket-landing@0.1.0 dev
+> vite --host 127.0.0.1 --host 127.0.0.1 --port 5173
+
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+
+  VITE v7.3.6  ready in 691 ms
+
+  ➜  Local:   http://127.0.0.1:5175/
+12:45:35 am [vite] (client) hmr update /src/AuthModal.jsx, /src/index.css
+12:50:15 am [vite] (client) hmr update /src/AuthModal.jsx, /src/index.css
+12:50:15 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:59:24 am [vite] (client) hmr update /src/LandingPage.jsx, /src/index.css
+12:59:31 am [vite] (client) hmr update /src/AuthModal.jsx, /src/index.css
+1:00:00 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:00:27 am [vite] (client) hmr update /src/AuthModal.jsx, /src/index.css
+12:42:00 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:42:16 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:43:38 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:43:40 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:43:54 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:43:55 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:44:02 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:44:03 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:44:42 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:44:54 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:45:14 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+12:45:28 am [vite] (client) hmr update /src/App.jsx, /src/index.css
+1:25:35 am [vite] (client) hmr update /src/AuthModal.jsx, /src/index.css
+1:34:29 am [vite] (client) hmr update /src/LandingPage.jsx, /src/index.css
+1:34:38 am [vite] (client) hmr update /src/LandingPage.jsx, /src/index.css
+8:26:53 am [vite] (client) hmr update /src/LandingPage.jsx, /src/index.css
+8:27:46 am [vite] (client) hmr update /src/LandingPage.jsx, /src/index.css
+8:29:01 am [vite] (client) hmr update /src/LandingPage.jsx, /src/index.css
