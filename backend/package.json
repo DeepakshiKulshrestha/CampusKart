@@ -14,7 +14,17 @@
     "db:indexes": "node src/scripts/syncIndexes.js",
     "db:loadtest": "node src/scripts/loadTest.js",
     "db:verify-images": "node src/scripts/verifyImages.js",
-    "cloudinary:ping": "node src/scripts/cloudinaryPing.js"
+    "cloudinary:ping": "node src/scripts/cloudinaryPing.js",
+    "db:settings": "node src/scripts/settings.js",
+    "db:analytics": "node src/scripts/analyticsReport.js",
+    "db:embeddings": "node src/scripts/syncEmbeddings.js",
+    "db:vector-index": "node src/scripts/createVectorIndex.js",
+    "db:embeddings:test": "node src/scripts/embeddingNonBlockingTest.js",
+    "db:backup": "node src/scripts/backup.js",
+    "db:restore": "node src/scripts/restore.js",
+    "db:index-review": "node src/scripts/indexReview.js",
+    "db:prod-check": "node src/scripts/prodCheck.js",
+    "db:verify": "node src/scripts/verifyAll.js"
   },
   "keywords": [],
   "author": "",
