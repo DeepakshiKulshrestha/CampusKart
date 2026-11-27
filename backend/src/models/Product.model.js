@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { scheduleEmbeddingSync, EMBED_TEXT_FIELDS, FILTER_FIELDS } from '../services/embedding.service.js';
 import { CATEGORIES, CONDITIONS, PRODUCT_STATUS, URL_REGEX } from './constants.js';
 
 const productSchema = new mongoose.Schema(
@@ -39,6 +40,17 @@ productSchema.index({ sellerId: 1, status: 1, createdAt: -1 });
 
 productSchema.pre('validate', function () {
   if (this.price > this.originalPrice * 3) this.invalidate('price', 'Price looks unrealistic vs original price');
+});
+
+// ---- Week 6: keep product_embeddings in sync without slowing down the save ----
+productSchema.pre('save', function () {
+  this.$locals.embedText = this.isNew || this.isModified(EMBED_TEXT_FIELDS);
+  this.$locals.embedFilters = !this.$locals.embedText && this.isModified(FILTER_FIELDS);
+});
+productSchema.post('save', function (doc) {
+  // Queued on the event loop: the HTTP response never waits for the embedding API
+  if (doc.$locals.embedText) scheduleEmbeddingSync(doc._id, 'text');
+  else if (doc.$locals.embedFilters) scheduleEmbeddingSync(doc._id, 'filters');
 });
 
 const Product = mongoose.model('Product', productSchema);

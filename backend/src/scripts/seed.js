@@ -5,7 +5,7 @@
 import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import { connectDB, disconnectDB } from '../config/db.js';
-import { User, Product, Interest, Transaction, Report, Settings, constants as C } from '../models/index.js';
+import { User, Product, Interest, Transaction, Report, Settings, AiPrediction, AiFlag, ProductEmbedding, SearchLog, constants as C } from '../models/index.js';
 
 const arg = (k, d) => (process.argv.find((a) => a.startsWith(`--${k}=`)) || '').split('=')[1] || d;
 const N_PRODUCTS = Number(arg('products', 60));
@@ -59,9 +59,9 @@ function buildProduct(sellers, i) {
 
 (async () => {
   await connectDB();
-  await Promise.all(Object.values({ User, Product, Interest, Transaction, Report, Settings }).map((m) => m.syncIndexes()));
+  await Promise.all(Object.values({ User, Product, Interest, Transaction, Report, Settings, AiPrediction, AiFlag, ProductEmbedding, SearchLog }).map((m) => m.syncIndexes()));
   if (!KEEP) {
-    await Promise.all([User, Product, Interest, Transaction, Report, Settings].map((m) => m.deleteMany({})));
+    await Promise.all([User, Product, Interest, Transaction, Report, Settings, AiPrediction, AiFlag, ProductEmbedding, SearchLog].map((m) => m.deleteMany({})));
     console.log('[seed] cleared collections');
   }
 
@@ -81,6 +81,7 @@ function buildProduct(sellers, i) {
     products.push(...(await Product.insertMany(batch, { ordered: false })));
   }
 
+  await Settings.ensureDefaults();
   await Settings.set('commissionRate', 5, users[0]._id);
   const rate = 5;
 
@@ -90,19 +91,50 @@ function buildProduct(sellers, i) {
     const key = `${p._id}-${buyer._id}`;
     if (p.status === 'SOLD') {
       interests.push({ productId: p._id, buyerId: buyer._id, sellerId: p.sellerId, message: 'Is this still available?', status: 'ACCEPTED' });
-      txns.push({ productId: p._id, buyerId: buyer._id, sellerId: p.sellerId, amount: p.price, commissionRate: rate, paymentStatus: 'SUCCESS', transactionStatus: 'COMPLETED', completedAt: new Date() });
+      txns.push({ productId: p._id, buyerId: buyer._id, sellerId: p.sellerId, amount: p.price, commissionRate: rate, paymentStatus: 'SUCCESS', transactionStatus: 'COMPLETED', completedAt: new Date(p.createdAt.getTime() + Math.random() * (Date.now() - p.createdAt.getTime())) });
       seen.add(key);
+    } else if (Math.random() < 0.06) {
+      // a cancelled or still-pending deal, so "transactions by status" has more than one bar
+      const cancelled = Math.random() < 0.6;
+      interests.push({ productId: p._id, buyerId: buyer._id, sellerId: p.sellerId, message: 'Deal?', status: cancelled ? 'CANCELLED' : 'ACCEPTED' });
+      txns.push({ productId: p._id, buyerId: buyer._id, sellerId: p.sellerId, amount: p.price, commissionRate: rate, paymentStatus: cancelled ? 'FAILED' : 'PENDING', transactionStatus: cancelled ? 'CANCELLED' : 'PENDING' });
     } else if (Math.random() < 0.3 && !seen.has(key)) {
       interests.push({ productId: p._id, buyerId: buyer._id, sellerId: p.sellerId, message: pick(['Can you do a lower price?', 'Interested! When can I see it?', '']), status: 'PENDING' });
     }
-    if (Math.random() < 0.05) reports.push({ productId: p._id, reportedBy: buyer._id, reason: pick(C.REPORT_REASONS), details: 'Looks off compared to similar listings.' });
+    if (Math.random() < 0.05) reports.push({ productId: p._id, reportedBy: buyer._id, sellerId: p.sellerId, reason: pick(C.REPORT_REASONS), details: 'Looks off compared to similar listings.' });
   }
   await Interest.insertMany(interests, { ordered: false });
   // .create runs pre('validate') hooks so commission fields are computed
   for (const t of txns) await Transaction.create(t);
   await Report.insertMany(reports, { ordered: false });
 
-  console.log(`[seed] users=${users.length} products=${products.length} interests=${interests.length} transactions=${txns.length} reports=${reports.length}`);
+  // Weeks 5–7 demo data (clearly labelled modelVersion "seed-demo"; real rows come from the ML service)
+  const predictions = products.filter(() => Math.random() < 0.4).map((p) => {
+    const predicted = Math.round(p.price * (0.85 + Math.random() * 0.3));
+    return {
+      productId: p._id, sellerId: p.sellerId, endpoint: 'predict-price',
+      inputFeatures: { category: p.category, brand: p.brand, originalPrice: p.originalPrice, age: p.age, condition: p.condition, location: p.location },
+      predictedPrice: predicted, fairPriceRange: { min: Math.round(predicted * 0.9), max: Math.round(predicted * 1.1) },
+      modelVersion: 'seed-demo', latencyMs: rand(40, 400), ...(p.status === 'SOLD' ? { actualSalePrice: p.price } : {}),
+      createdAt: p.createdAt,
+    };
+  });
+  await AiPrediction.insertMany(predictions, { ordered: false });
+  const flags = products.filter((p) => p.status === 'AVAILABLE' && Math.random() < 0.03).map((p) => ({
+    productId: p._id, sellerId: p.sellerId, suspicionScore: rand(40, 90), anomalyScore: rand(30, 90), riskLevel: pick(['MEDIUM', 'HIGH']),
+    riskFactors: [{ feature: 'priceDeviation', value: rand(60, 150), reason: 'Listed price differs from estimated fair price by at least 60%' }],
+    modelDecision: 'FLAG_FOR_REVIEW', model: 'IsolationForest + transparent threshold signals', modelVersion: 'seed-demo',
+  }));
+  await AiFlag.insertMany(flags, { ordered: false });
+  for (const f of flags) await Product.updateOne({ _id: f.productId }, { $set: { suspicionScore: f.suspicionScore } });
+  const QUERIES = ['calculator', 'cheap cycle', 'study table', 'laptop under 30000', 'engineering books', 'kettle for hostel', 'gaming mouse', 'something to carry my laptop'];
+  await SearchLog.insertMany(Array.from({ length: 150 }, () => {
+    const query = pick(QUERIES);
+    return { query, mode: pick(['keyword', 'semantic']), category: Math.random() < 0.4 ? pick(C.CATEGORIES) : undefined, resultCount: Math.random() < 0.1 ? 0 : rand(1, 20), createdAt: new Date(Date.now() - rand(0, 30) * 864e5) };
+  }));
+
+  console.log(`[seed] users=${users.length} products=${products.length} interests=${interests.length} transactions=${txns.length} reports=${reports.length} ai_predictions=${predictions.length} ai_flags=${flags.length} search_logs=150`);
+  console.log('[seed] embeddings are not generated here: run `npm run db:embeddings` next');
   console.log(`[seed] login: admin@campuskart.edu / ${DEMO_PASSWORD}  (all users share this password)`);
   await disconnectDB();
 })().catch(async (e) => { console.error('[seed] failed:', e.message); await disconnectDB(); process.exit(1); });
