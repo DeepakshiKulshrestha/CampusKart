@@ -8,6 +8,7 @@ import productRouter from "./routes/productRoutes.js";
 import interestRouter from "./routes/interestRoutes.js";
 import transactionRouter from "./routes/transactionRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
+import reportRouter from "./routes/reportRoutes.js";
 import { apiLimiter, authLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
@@ -39,6 +40,7 @@ app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
 app.use("/api/interests", interestRouter);
 app.use("/api/transactions", transactionRouter);
+app.use("/api/reports", reportRouter);
 app.use("/api/admin", adminRouter);
 
 // Fallback error handler (malformed JSON, unexpected DB errors, ...)

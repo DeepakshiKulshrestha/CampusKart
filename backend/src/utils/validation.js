@@ -6,6 +6,9 @@ import {
   CONDITIONS,
   INTEREST_STATUS,
   TRANSACTION_STATUS,
+  PRODUCT_STATUS,
+  REPORT_REASONS,
+  REPORT_STATUS,
 } from '../models/constants.js';
 import { OBJECT_ID } from './http.js';
 
@@ -137,6 +140,39 @@ const rangeFields = {
 
 const adminTransactionQuerySchema = z.object({ ...pageFields, ...rangeFields, status: optionalEnum(TRANSACTION_STATUS) });
 
+const analyticsQuerySchema = z.object({
+  ...rangeFields,
+  granularity: optionalEnum(['hour', 'day', 'month']),
+  limit: num('limit', (s) => s.int().min(1, 'limit must be at least 1').max(20, 'limit cannot exceed 20').optional()),
+});
+
+const searchText = z.preprocess(blankToUndefined, z.string().trim().min(1).max(100, 'search must be at most 100 characters').optional());
+
+const adminUserQuerySchema = z.object({ ...pageFields, search: searchText, role: optionalEnum(ROLES) });
+
+const restrictUserSchema = z.object({ isRestricted: z.boolean('isRestricted must be true or false') });
+
+const adminProductQuerySchema = z.object({ ...pageFields, search: searchText, status: optionalEnum(PRODUCT_STATUS) });
+
+const removeProductSchema = z.object({
+  reason: z.preprocess(blankToUndefined, z.string().trim().max(500, 'reason must be at most 500 characters').optional()),
+});
+
+// ---- Reports ----
+const createReportSchema = z.object({
+  productId: objectId('productId'),
+  reason: z.enum(REPORT_REASONS),
+  details: z.preprocess(blankToUndefined, z.string().trim().max(1000, 'details must be at most 1000 characters').optional()),
+});
+
+const adminReportQuerySchema = z.object({ ...pageFields, status: optionalEnum(REPORT_STATUS) });
+
+const reviewReportSchema = z.object({
+  status: z.enum(['REVIEWED', 'RESOLVED', 'DISMISSED']),
+  adminNote: z.preprocess(blankToUndefined, z.string().trim().max(1000, 'adminNote must be at most 1000 characters').optional()),
+  removeListing: z.boolean().optional().default(false),
+});
+
 export {
   validationError,
   registerSchema,
@@ -155,4 +191,12 @@ export {
   commissionSchema,
   rangeFields,
   adminTransactionQuerySchema,
+  analyticsQuerySchema,
+  adminUserQuerySchema,
+  restrictUserSchema,
+  adminProductQuerySchema,
+  removeProductSchema,
+  createReportSchema,
+  adminReportQuerySchema,
+  reviewReportSchema,
 };

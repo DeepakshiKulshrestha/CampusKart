@@ -9,6 +9,7 @@ import {
   markSold,
 } from '../controllers/productController.js';
 import { createInterest } from '../controllers/interestController.js';
+import { createReport } from '../controllers/reportController.js';
 import { protect } from '../middleware/auth.js';
 import { uploadProductImages, handleUploadErrors } from '../middleware/upload.js';
 
@@ -24,5 +25,6 @@ router.put('/:id', protect, updateProduct);
 router.delete('/:id', protect, deleteProduct);
 router.put('/:id/sold', protect, markSold);
 router.post('/:id/interest', protect, createInterest);
+router.post('/:id/report', protect, createReport); // same as POST /api/reports with productId in the URL
 
 export default router;
