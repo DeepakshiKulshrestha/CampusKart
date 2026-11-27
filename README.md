@@ -1,130 +1,108 @@
-# CampusKart AI/ML Service
+# CampusKart
 
-This branch contains Roshni's Python service for resale-price suggestions, price fairness, product search, and listing-risk review. The Node application is expected to provide listings and seller information; this service does not own user authentication or marketplace database writes.
+A college-only, second-hand marketplace. Students list things they no longer need (books, electronics, furniture, cycles…), other students on the same campus express interest, the seller accepts, and the buyer pays through CampusKart. The platform keeps a small commission on every completed sale, and admins moderate listings, users and reports from a dashboard.
 
-## Product catalog and dataset
+> **Real college marketplace first, meaningful AI on top.** Three AI features (price suggestions, semantic search and suspicious-listing detection) are being built in `ml-service/` and will plug into the backend later. The marketplace works fully without them.
 
-The configurable catalog is [product_catalog.json](ml-service/data/product_catalog.json). It has 62 item types in eight categories, including lab and Manpro coats (XS–XXXL), safety equipment, stationery, books, personal care, chips/chocolate and other snacks, laptops, bicycles, and hostel essentials. Product records define brands, variants, pack options, item type, price range, and whether each item is reusable, consumable, or perishable.
+## Architecture
 
-The generator creates a local 1,050,000-row CSV at `ml-service/data/synthetic/campuskart_listings_v2.csv`. A companion manifest records its seed, catalog version, columns, and digest. The CSV and model binaries are Git-ignored. Price ranges and resale rules are synthetic assumptions, not verified market research; scores from these labels are not evidence of real-world accuracy.
-
-## File guide
-
-| File | Purpose |
-| --- | --- |
-| `ml-service/data/product_catalog.json` | Editable product types, sizes/variants, brands, pack quantities, price ranges, and generation weights. |
-| `ml-service/data/generate_synthetic.py` | Reads the catalog and creates the CSV plus provenance manifest. |
-| `ml-service/data/DATA_DICTIONARY.md` | Column definitions, synthetic assumptions, and appropriate use. |
-| `ml-service/price_prediction/train.py` | Compares regressors, selects one by holdout MAE, and saves versioned plus `current` model artifacts. |
-| `ml-service/price_prediction/predict.py` | Loads the active price artifact and prepares a request row for prediction. |
-| `ml-service/fraud_detection/train.py` | Fits the Isolation Forest and stores metrics/model card. |
-| `ml-service/fraud_detection/predict.py` | Loads the active anomaly model and returns a review signal. |
-| `ml-service/semantic_search/search.py` | Sends query and bounded candidate-product text to Hugging Face Inference Providers and ranks hosted embeddings. |
-| `ml-service/main.py` | FastAPI application, validation, routes, model loading, and production API-key check. |
-| `ml-service/scripts/package_model_artifacts.py` | Packages the active model artifacts and checksums for a later deployment workflow. |
-| `ml-service/scripts/artifact_bundle.py` | Restores a downloaded bundle after verifying its checksums. The API can use it on startup if bundle environment variables are configured. |
-| `ml-service/docs/TRAINING_RUNBOOK.md` | Detailed manual commands and expected outputs. |
-| `ml-service/docs/API_AND_MODEL_REFERENCE.md` | Request fields and route behavior. |
-
-## Run it yourself, step by step
-
-These commands are instructions for you to run in PowerShell. Review each step and its output before continuing. Do not start at the training step until the CSV has been generated.
-
-### 1. Create the Python environment
-
-From the repository root:
-
-```powershell
-py -3.11 -m venv ml-service/.venv
-ml-service/.venv/Scripts/Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install -r ml-service/requirements.txt
-Set-Location ml-service
+```
+Browser ──▶ React + Vite + Tailwind (frontend/, port 5173)
+              │  Axios, Bearer token
+              ▼
+           Node.js + Express (backend/, port 5000; 5001 on macOS)
+              │            │                │
+              ▼            ▼                ▼
+        MongoDB Atlas   Cloudinary    FastAPI ML service (ml-service/, port 8000)
+        (all data)      (images)      AI inference only: no auth, no database writes
 ```
 
-Purpose: isolate project dependencies, install the packages used by FastAPI, scikit-learn, XGBoost and the other service modules, then move to the ML service folder. If the activation policy blocks activation, use `ml-service/.venv/Scripts/python.exe` for commands instead.
+- The browser only ever talks to the Node backend. Node calls the ML service when it needs an AI result.
+- Payments are **simulated**: the backend decides whether a payment succeeds; the browser can never mark a payment as paid.
+- Commission is snapshotted into each transaction when it is created, and only counts once the transaction is COMPLETED.
 
-### 2. Review and generate the dataset
+## Tech stack
 
-Review `data/product_catalog.json` and change its values if needed. Then, from `ml-service/`:
+| Part | Technology |
+|---|---|
+| Frontend | React 19, Vite, Tailwind CSS, React Router, Axios, Recharts |
+| Backend | Node.js 22, Express 5, Mongoose (MongoDB Atlas), JWT, bcrypt, Zod, Multer + Cloudinary, Helmet, express-rate-limit |
+| ML service | Python 3.11, FastAPI, scikit-learn / XGBoost, Sentence Transformers (via Hugging Face) |
+| Deployment | Vercel (frontend), Render (backend + ML service), Docker |
 
-```powershell
-python data/generate_synthetic.py --rows 1050000 --seed 20261020 --chunk-size 50000
+## Team
+
+| Member | Area |
+|---|---|
+| Vinayak | Frontend (UI, pages, components) |
+| Deepakshi | Backend (APIs, auth, transactions, admin) |
+| Devansh | Database & storage (schemas, indexes, analytics, backups, Cloudinary) |
+| Roshni | AI/ML (price model, semantic search, fraud detection) |
+
+## Run it locally
+
+You need Node.js 22+, a MongoDB connection string and Cloudinary keys. Ask the team lead for the development values, and never commit `.env` files.
+
+### 1. Backend
+
+```bash
+cd backend
+cp .env.example .env      # fill in MONGODB_URI, JWT_SECRET, CLOUDINARY_* (and PORT=5001 on macOS)
+npm install
+npm run dev               # → "Server running on http://localhost:5001" and "[db] connected"
+```
+Check: `curl http://localhost:5001/api/health`.
+
+### 2. Frontend
+
+```bash
+cd frontend
+cp .env.example .env      # VITE_API_URL=http://localhost:5001/api (use :5000 if your backend runs there)
+npm install
+npm run dev               # → http://localhost:5173
+```
+The dev server must run on `http://localhost:5173`: that is the only browser origin the backend allows by default (`FRONTEND_URL`). If you open the app from another address, add it to `FRONTEND_URL` in `backend/.env` (comma-separated).
+
+### 3. ML service (optional for now)
+
+The marketplace runs without it. To set it up, follow [ml-service/README.md](ml-service/README.md) and [ml-service/docs/TRAINING_RUNBOOK.md](ml-service/docs/TRAINING_RUNBOOK.md) (the trained model files are not in Git and must be generated locally).
+
+### Docker (optional)
+
+```bash
+cp ml-service/.env.example ml-service/.env   # compose reads this file even if you skip the ML service
+docker compose up --build backend frontend   # backend on :5001, frontend on :5173
+docker compose up --build                    # everything, once the ML models are trained
 ```
 
-Purpose: produce the CSV and `.manifest.json` in `data/synthetic/`. Check the final row count, file size, catalog version, and SHA-256 in the printed output/manifest. Change the seed when you deliberately want a different synthetic population. The output is large and is excluded from Git.
+## Environment files
 
-### 3. Train the price model yourself
+| File | Variables | Template |
+|---|---|---|
+| `backend/.env` | `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_FOLDER`, `PORT`, `NODE_ENV`, `FRONTEND_URL`, `AI_SERVICE_URL`, `ML_API_KEY`, `HF_TOKEN`, `ANALYTICS_TZ` (+ optional ones) | [backend/.env.example](backend/.env.example) |
+| `frontend/.env` | `VITE_API_URL` | [frontend/.env.example](frontend/.env.example) |
+| `ml-service/.env` | `PORT`, `APP_ENV`, `ML_API_KEY`, `HF_TOKEN`, model paths | [ml-service/.env.example](ml-service/.env.example) |
 
-```powershell
-python price_prediction/train.py --data data/synthetic/campuskart_listings_v2.csv
-```
+## Test accounts
 
-Purpose: read completed-sale rows, compare Linear Regression, Random Forest, and XGBoost (if installed), score them against a held-out split, and save the selected model. Read the JSON summary, especially the feature list, model version, dataset digest, row counts, and synthetic caveat.
+- Anyone can register a STUDENT account from the Register page. Admin accounts can't be created through the API.
+- The seed script (`npm run db:seed`) creates demo users, including `admin@campuskart.edu`; see [backend/DATABASE.md](backend/DATABASE.md). **The development database is shared by the whole team: do not run the seed, restore or any delete script against it.** Use a separate database (e.g. a local MongoDB) if you need fresh demo data.
+- When testing against the shared database, only create data with "TEST" in the title and fake emails like `ck.test.buyer@campuskart.edu`.
 
-Expected outputs under `model_artifacts/price/`:
+## Main features
 
-```text
-<run-id>/model.joblib
-<run-id>/metrics.json
-<run-id>/MODEL_CARD.md
-current/model.joblib
-current/metrics.json
-current/MODEL_CARD.md
-```
+- **Students:** register/login, profile, create listings with up to 5 photos, browse with keyword search, filters (category, price, condition, location), sorting and pagination, express interest, accept/reject requests as a seller, simulated payment with a commission breakdown, transaction history, report listings, save items (stored on the device).
+- **Admins:** dashboard metrics and charts (sales, commission, transactions by status, top categories, any date range), report moderation, user restriction, listing removal, commission rate settings with history.
+- **Coming with the ML service:** AI price suggestions, a fair-price badge, smart (semantic) search, suspicious-listing flags for admin review, AI analytics.
 
-### 4. Train the listing-risk model yourself
+## Documentation
 
-```powershell
-python fraud_detection/train.py --data data/synthetic/campuskart_listings_v2.csv
-```
-
-Purpose: fit an Isolation Forest on generated benign seller profiles. Read its metrics/model card. Perfect synthetic-scenario diagnostics only show that it recognized rules created by this same generator; they do not measure real fraud detection quality. Do not automatically ban users or remove listings based on this score.
-
-Expected outputs are in `model_artifacts/fraud/<run-id>/` and `model_artifacts/fraud/current/`.
-
-### 5. Start the API and make manual requests
-
-To use hosted Hugging Face embeddings, create an access token with Inference Providers permission. In the same PowerShell session used to start the API, set it as a process environment variable:
-
-```powershell
-$secureToken = Read-Host "Paste Hugging Face token" -AsSecureString
-$env:HF_TOKEN = [System.Net.NetworkCredential]::new("", $secureToken).Password
-$env:EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-```
-
-Then start the API:
-
-```powershell
-uvicorn main:app --reload --port 8000
-```
-
-Keep this terminal running. In a second PowerShell terminal, use:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
-Invoke-RestMethod http://127.0.0.1:8000/model-metrics
-```
-
-Purpose: `/health` reports service status; `/model-metrics` identifies the loaded pricing model and its measured synthetic holdout results. Open `http://127.0.0.1:8000/docs` to manually try `/predict-price`, `/price-fairness`, `/semantic-search`, and `/suspicion-score`. For a Manpro lab coat request, provide `category`, `itemType`, `brand`, `variant` (for example `L`), `originalPrice`, `age`, `condition`, and `packQuantity`; provide `isPerishable`, `daysUntilExpiry`, and `opened` for relevant items. Stop the server with Ctrl+C in its terminal.
-
-The hosted mode returns an engine name beginning `huggingface-inference:`. It sends query and candidate product text to Hugging Face; keep private student information out of those fields. Remote inference uses your Hugging Face account/provider quota and may incur charges. The model is pretrained; the CSV does not train it. The Node backend must retrieve and provide a bounded candidate set (1–250 listings) for each search request. Use `/docs` for manual endpoint checks. See [SECURITY_REVIEW.md](ml-service/docs/SECURITY_REVIEW.md) for remaining deployment work.
-
-### 6. Package artifacts only when you decide to deploy
-
-After inspecting both model cards and metrics:
-
-```powershell
-python scripts/package_model_artifacts.py
-```
-
-Purpose: produce a checksum-verified ZIP from the active models. It does not deploy the service. Deployment also needs private artifact storage, configured secrets, a hosting account, and integration with the main application. Do not upload secrets or large model/data files to ordinary Git history.
-
-## Existing files in this workspace
-
-Datasets, manifests, trained model artifacts, and the packaged model bundle are local generated outputs and are Git-ignored. Recreate/regenerate them with the steps above as needed; the source of truth is the code and catalog configuration. No Git commit or push has been made.
-
-## Production boundary
-
-The Dockerfile packages the ML API only; this branch does not contain an integrated/deployed full marketplace. Production use needs real transaction and reviewed fraud outcomes, model governance, secrets, persistent artifact hosting, operational monitoring, and Node/backend integration. Synthetic outputs should remain clearly labeled suggestions/review signals.
-
+| Document | What's inside |
+|---|---|
+| [backend/API_REFERENCE.md](backend/API_REFERENCE.md) | Every endpoint, inputs, enum values, responses, error codes, purchase flow |
+| [backend/DATABASE.md](backend/DATABASE.md) | Database scripts and what each week added |
+| [backend/docs/RELATIONSHIPS.md](backend/docs/RELATIONSHIPS.md) | Collections, references and rules the API must follow |
+| [backend/docs/PRODUCTION.md](backend/docs/PRODUCTION.md) | Production database, credential rotation, backups, indexes |
+| [ml-service/README.md](ml-service/README.md) | ML service: dataset, training and running it |
+| [ml-service/docs/API_AND_MODEL_REFERENCE.md](ml-service/docs/API_AND_MODEL_REFERENCE.md) | ML endpoints and models |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Step-by-step deployment to Render and Vercel |

@@ -29,3 +29,42 @@ services:
       name: campuskart-ml-data
       mountPath: /var/data
       sizeGB: 5
+
+  # Node/Express backend (Deepakshi). Deploy order: ML service first (or skip it until the models are ready),
+  # then this service, then the frontend on Vercel. See DEPLOYMENT.md.
+  - type: web
+    name: campuskart-backend
+    runtime: docker
+    plan: free # free instances sleep after ~15 min idle; switch to starter for the final demo
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production # also enables app.set("trust proxy", 1) for the rate limiter
+      - key: PORT
+        value: "10000"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: campuskart
+      - key: FRONTEND_URL
+        sync: false # your Vercel URL, e.g. https://campuskart.vercel.app (comma-separate several)
+      - key: AI_SERVICE_URL
+        sync: false # the ML service URL, e.g. https://campuskart-ml.onrender.com
+      - key: ML_API_KEY
+        sync: false # same value as on campuskart-ml
+      - key: HF_TOKEN
+        sync: false
+      - key: ANALYTICS_TZ
+        value: Asia/Kolkata
