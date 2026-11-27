@@ -65,9 +65,19 @@ async function createTransaction(req, res, next) {
     await tx.populate(POPULATE);
     return res.status(201).json({ success: true, transaction: tx });
   } catch (err) {
-    // Unique index: only one PENDING/COMPLETED transaction per product
+    // Unique index: only one PENDING/COMPLETED transaction per product. If it is this buyer's own
+    // (e.g. two requests raced from a double click), hand back its id so the client can open it.
     if (err.code === 11000) {
-      return res.status(409).json({ success: false, message: 'This product already has an active transaction' });
+      const active = await Transaction.findOne({
+        interestId: parsed.data.interestId,
+        buyerId: req.user._id,
+        transactionStatus: { $in: ['PENDING', 'COMPLETED'] },
+      }).catch(() => null);
+      return res.status(409).json({
+        success: false,
+        message: active ? 'A transaction already exists for this interest' : 'This product already has an active transaction',
+        ...(active ? { transactionId: active._id } : {}),
+      });
     }
     next(err);
   }

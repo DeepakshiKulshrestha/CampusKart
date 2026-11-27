@@ -50,8 +50,9 @@ export default function Navbar({ onLogout }) {
     { label: 'Home', path: '/' },
     { label: 'Marketplace', path: '/marketplace' },
     { label: 'Dashboard', path: '/dashboard', authRequired: true },
-    { label: 'Messages', path: '/chat', authRequired: true },
     { label: 'My Listings', path: '/my-listings', authRequired: true },
+    { label: 'Interests', path: '/interests', authRequired: true },
+    { label: 'Chat (demo)', path: '/chat', authRequired: true },
   ];
 
   const initials = user
