@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import { ROLES, URL_REGEX, CATEGORIES, CONDITIONS } from '../models/constants.js';
+import {
+  ROLES,
+  URL_REGEX,
+  CATEGORIES,
+  CONDITIONS,
+  INTEREST_STATUS,
+  TRANSACTION_STATUS,
+} from '../models/constants.js';
+import { OBJECT_ID } from './http.js';
 
 function validationError(res, zodError) {
   return res.status(400).json({
@@ -84,6 +92,51 @@ const productQuerySchema = z
     path: ['minPrice'],
   });
 
+// ---- Shared ----
+const objectId = (label) => z.string(`${label} is required`).regex(OBJECT_ID, `Invalid ${label}`);
+const optionalEnum = (values) => z.preprocess(blankToUndefined, z.enum(values).optional());
+// "buyer" = things I bought / asked for, "seller" = things sold / asked from me; omitted = both
+const roleFilter = optionalEnum(['buyer', 'seller']);
+
+// ---- Interests ----
+const createInterestSchema = z.object({
+  message: z.preprocess(
+    (v) => (v === null ? undefined : v),
+    z.string().trim().max(500, 'Message must be at most 500 characters').optional()
+  ),
+});
+
+const interestQuerySchema = z.object({ ...pageFields, role: roleFilter, status: optionalEnum(INTEREST_STATUS) });
+
+// Who may set which status is checked in the controller (seller: ACCEPTED/REJECTED, buyer: CANCELLED)
+const updateInterestSchema = z.object({ status: z.enum(['ACCEPTED', 'REJECTED', 'CANCELLED']) });
+
+// ---- Transactions ----
+const createTransactionSchema = z.object({ interestId: objectId('interestId') });
+
+// Payment is simulated: the backend decides the outcome. simulateFailure only exists for testing the failure path.
+const payTransactionSchema = z.object({ simulateFailure: z.boolean().optional().default(false) });
+
+const transactionQuerySchema = z.object({ ...pageFields, role: roleFilter, status: optionalEnum(TRANSACTION_STATUS) });
+
+// ---- Admin ----
+const commissionSchema = z.object({
+  commissionRate: z
+    .number('commissionRate must be a number')
+    .min(0, 'commissionRate cannot be negative')
+    .max(100, 'commissionRate cannot exceed 100'),
+});
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Same values as resolveRange() in services/analytics.service.js
+const rangeFields = {
+  range: optionalEnum(['today', 'week', 'month', 'year', 'all', 'custom']),
+  from: z.preprocess(blankToUndefined, z.string().regex(DATE, 'from must be YYYY-MM-DD').optional()),
+  to: z.preprocess(blankToUndefined, z.string().regex(DATE, 'to must be YYYY-MM-DD').optional()),
+};
+
+const adminTransactionQuerySchema = z.object({ ...pageFields, ...rangeFields, status: optionalEnum(TRANSACTION_STATUS) });
+
 export {
   validationError,
   registerSchema,
@@ -93,4 +146,13 @@ export {
   updateProductSchema,
   productQuerySchema,
   myProductsQuerySchema,
+  createInterestSchema,
+  interestQuerySchema,
+  updateInterestSchema,
+  createTransactionSchema,
+  payTransactionSchema,
+  transactionQuerySchema,
+  commissionSchema,
+  rangeFields,
+  adminTransactionQuerySchema,
 };

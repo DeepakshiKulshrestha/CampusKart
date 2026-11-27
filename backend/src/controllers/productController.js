@@ -7,9 +7,7 @@ import {
   myProductsQuerySchema,
   validationError,
 } from '../utils/validation.js';
-
-// Plain regex: mongoose.isValidObjectId also accepts any 12-character string
-const OBJECT_ID = /^[0-9a-fA-F]{24}$/;
+import { OBJECT_ID, paginated } from '../utils/http.js';
 
 const SORTS = {
   newest: { createdAt: -1, _id: -1 },
@@ -17,10 +15,6 @@ const SORTS = {
   price_asc: { price: 1, createdAt: -1, _id: -1 },
   price_desc: { price: -1, createdAt: -1, _id: -1 },
 };
-
-function paginated(items, total, page, limit) {
-  return { success: true, items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
-}
 
 // Sends the response and returns null unless the id is valid, the product exists (not REMOVED) and req.user owns it
 async function loadOwnedProduct(req, res) {
