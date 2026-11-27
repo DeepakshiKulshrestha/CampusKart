@@ -16,30 +16,53 @@ import {
   TrendingUp,
   MapPin,
   CheckCircle2,
+  Watch,
+  Refrigerator,
+  Package,
 } from 'lucide-react';
-import { CATEGORIES } from '../data/mockData';
-import { getStoredProducts } from '../services/storage';
+import { CATEGORIES } from '../utils/constants';
+import { productApi, getErrorMessage } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import SearchBar from '../components/SearchBar';
 import Button from '../components/Button';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
+import EmptyState from '../components/EmptyState';
 
 const categoryIconMap = {
-  textbooks: BookOpen,
-  electronics: Laptop,
-  furniture: Armchair,
-  bikes: Bike,
-  clothing: Shirt,
-  supplies: PenTool,
+  Books: BookOpen,
+  Electronics: Laptop,
+  Furniture: Armchair,
+  Cycles: Bike,
+  Stationery: PenTool,
+  Accessories: Watch,
+  Appliances: Refrigerator,
+  Other: Package,
 };
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // Six most recent AVAILABLE listings
+  const loadRecent = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const data = await productApi.getProducts({ sort: 'newest', limit: 6 });
+      setProducts(data.items);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not load recent listings'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const all = getStoredProducts();
-    setProducts(all);
+    loadRecent();
   }, []);
 
   const handleSearchSubmit = (query) => {
@@ -50,7 +73,6 @@ export default function HomePage() {
     }
   };
 
-  const featuredProducts = products.filter((p) => p.featured || p.status === 'Active').slice(0, 6);
 
   return (
     <div className="relative min-h-screen bg-[#F5F5F2]">
@@ -209,24 +231,21 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {CATEGORIES.filter((c) => c.id !== 'all').map((cat) => {
-                const Icon = categoryIconMap[cat.id] || BookOpen;
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4">
+              {CATEGORIES.map((cat) => {
+                const Icon = categoryIconMap[cat] || Package;
                 return (
                   <button
-                    key={cat.id}
+                    key={cat}
                     type="button"
-                    onClick={() => navigate(`/marketplace?category=${cat.id}`)}
+                    onClick={() => navigate(`/marketplace?category=${encodeURIComponent(cat)}`)}
                     className="group flex flex-col items-center rounded-3xl border border-[#E8E8E8] bg-[#F5F5F2] p-5 text-center shadow-card transition-all hover:-translate-y-1.5 hover:border-[#0638C9] hover:bg-white hover:shadow-softblue"
                   >
                     <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-[#0638C9] shadow-sm transition group-hover:bg-[#0638C9] group-hover:text-white">
                       <Icon className="h-6 w-6 stroke-[2]" />
                     </div>
                     <span className="mt-3.5 text-xs font-heading font-bold text-[#111111] group-hover:text-[#0638C9]">
-                      {cat.name}
-                    </span>
-                    <span className="mt-0.5 text-[11px] text-[#62666F]">
-                      {cat.count} items
+                      {cat}
                     </span>
                   </button>
                 );
@@ -247,7 +266,7 @@ export default function HomePage() {
                   </span>
                 </div>
                 <h2 className="mt-1 text-2xl font-heading font-black text-[#111111] sm:text-3xl">
-                  Featured on Campus
+                  Recently Listed
                 </h2>
               </div>
 
@@ -260,11 +279,24 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            {isLoading ? (
+              <LoadingSpinner size="lg" label="Loading recent listings..." className="py-16" />
+            ) : error ? (
+              <ErrorMessage title="Could not load recent listings" message={error} onRetry={loadRecent} />
+            ) : products.length === 0 ? (
+              <EmptyState
+                title="No listings yet"
+                description="Be the first to list something for your campus."
+                actionLabel="Create a Listing"
+                onAction={() => navigate('/create-listing')}
+              />
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
@@ -281,7 +313,7 @@ export default function HomePage() {
               </h2>
 
               <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-blue-100 sm:text-base">
-                Turn your unused items into instant cash. Free to list, instant student buyer reach, and zero marketplace commission.
+                Turn your unused items into instant cash. Free to list and instant reach to student buyers. A small platform commission applies only when your item sells.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">

@@ -15,7 +15,8 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getStoredProducts } from '../services/storage';
+import { productApi } from '../services/api';
+import ErrorMessage from '../components/ErrorMessage';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Modal from '../components/Modal';
@@ -45,6 +46,8 @@ export default function ProfilePage() {
 
   // Stats
   const [itemsSoldCount, setItemsSoldCount] = useState(0);
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -57,16 +60,17 @@ export default function ProfilePage() {
       setBio(user.bio || '');
       setAvatarUrl(user.avatarUrl || AVATAR_OPTIONS[0]);
 
-      // Calculate sold
-      const all = getStoredProducts();
-      const sold = all.filter(
-        (p) =>
-          p.status === 'Sold' &&
-          (p.seller?.id === user.id || p.seller?.email === user.email)
-      ).length;
-      setItemsSoldCount(sold);
     }
   }, [user]);
+
+  // Sold count from the backend (your 50 newest listings)
+  useEffect(() => {
+    if (!user) return;
+    productApi
+      .getMyProducts({ limit: 50 })
+      .then((d) => setItemsSoldCount(d.items.filter((p) => p.status === 'SOLD').length))
+      .catch(() => setItemsSoldCount(0));
+  }, [user?.id]);
 
   const handleOpenEdit = () => {
     if (user) {
@@ -79,25 +83,38 @@ export default function ProfilePage() {
       setBio(user.bio || '');
       setAvatarUrl(user.avatarUrl || AVATAR_OPTIONS[0]);
     }
+    setSaveError('');
     setIsEditModalOpen(true);
   };
 
+  // Name is saved to your account (PUT /api/users/me). Phone, college, major, room, bio and the
+  // avatar picture are kept on this device only: the backend stores just name and a Cloudinary profileImage.
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    await updateProfile({
-      name: `${firstName.trim()} ${lastName.trim()}`,
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      phone: phone.trim(),
-      major: major.trim(),
-      college: college.trim(),
-      dorm: dorm.trim(),
-      bio: bio.trim(),
-      avatarUrl,
-    });
-    setIsEditModalOpen(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+    if (fullName.length < 2) return setSaveError('Name must be at least 2 characters');
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      await updateProfile({
+        name: fullName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        major: major.trim(),
+        college: college.trim(),
+        dorm: dorm.trim(),
+        bio: bio.trim(),
+        avatarUrl,
+      });
+      setIsEditModalOpen(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const initials = user
@@ -292,6 +309,10 @@ export default function ProfilePage() {
         size="md"
       >
         <form onSubmit={handleSaveProfile} className="space-y-4">
+          {saveError && <ErrorMessage variant="inline" message={saveError} />}
+          <p className="rounded-xl bg-[#F5F5F2] p-3 text-[11px] text-[#62666F]">
+            Your name is saved to your CampusKart account. The other details and the avatar picture are only stored on this device.
+          </p>
           {/* Avatar selector */}
           <div>
             <label className="mb-2 block text-xs font-semibold text-slate-700">
@@ -387,7 +408,7 @@ export default function ProfilePage() {
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" size="sm">
+            <Button type="submit" variant="primary" size="sm" isLoading={isSaving}>
               Save Profile
             </Button>
           </div>

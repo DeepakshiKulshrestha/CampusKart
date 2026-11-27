@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authApi, userApi } from '../services/api';
+import { authApi, userApi, getErrorMessage } from '../services/api';
 import * as storage from '../services/storage';
 
 const AuthContext = createContext(null);
@@ -9,144 +9,75 @@ export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(() => storage.getToken());
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sync with token and verify profile on initial mount
+  // On load, refresh the cached profile from the backend (role and restriction may have changed)
   useEffect(() => {
     let isMounted = true;
 
     async function initAuth() {
-      const storedToken = storage.getToken();
-      const storedUser = storage.getCurrentUser();
-
-      if (storedToken && storedUser) {
+      if (storage.getToken() && storage.getCurrentUser()) {
         try {
-          // Attempt to fetch fresh profile from backend
           const res = await userApi.getMe();
           if (res?.success && res.user && isMounted) {
-            const saved = storage.saveUser({ ...res.user, token: storedToken });
-            setUser(saved);
+            setUser(storage.saveUser({ ...res.user, token: storage.getToken() }));
           }
-        } catch {
-          // Backend offline or unreachable — keep cached localStorage user
+        } catch (err) {
+          // 401 (expired token) or 403 (restricted account): log out. Network errors keep the cached session.
+          if ([401, 403].includes(err.response?.status) && isMounted) {
+            storage.clearUser();
+            setUser(null);
+            setTokenState(null);
+          }
         }
       }
-
-      if (isMounted) {
-        setIsLoading(false);
-      }
+      if (isMounted) setIsLoading(false);
     }
 
     initAuth();
 
-    // Cross-tab storage synchronization
-    const handleStorageChange = () => {
+    // Cross-tab sync, and forced logout when any request gets a 401 (see services/api.js)
+    const syncFromStorage = () => {
       setUser(storage.getCurrentUser());
       setTokenState(storage.getToken());
     };
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('campuskart_logged_out', syncFromStorage);
 
     return () => {
       isMounted = false;
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('campuskart_logged_out', syncFromStorage);
     };
   }, []);
 
-  // Login handler: calls real backend API with graceful offline mock fallback
+  const startSession = (response) => {
+    const savedUser = storage.saveUser({ ...response.user, token: response.token });
+    setUser(savedUser);
+    setTokenState(response.token);
+    return { success: true, user: savedUser };
+  };
+
+  // Login: errors (wrong password, restricted, server down) are shown to the user, never faked
   const login = useCallback(async (email, password) => {
     try {
       const response = await authApi.login(email, password);
-      if (response?.success && response.token && response.user) {
-        const savedUser = storage.saveUser({ ...response.user, token: response.token });
-        setUser(savedUser);
-        setTokenState(response.token);
-        return { success: true, user: savedUser };
-      }
-      throw new Error(response?.message || 'Login failed');
+      return startSession(response);
     } catch (err) {
-      // If error is from server (e.g. 401 invalid password, 403 restricted, 400 validation)
-      if (err.response?.data?.message) {
-        throw new Error(err.response.data.message);
-      }
-      if (err.response?.data?.errors?.length) {
-        throw new Error(err.response.data.errors.map((e) => e.message).join(', '));
-      }
-
-      // If network error (backend offline/not running), use mock fallback
-      console.warn('Backend server unreachable; utilizing local authentication mock fallback.');
-      const existingUsers = storage.getStoredUsers();
-      const matched = existingUsers.find(
-        (u) => u.email?.toLowerCase() === email.trim().toLowerCase()
-      );
-
-      const mockToken = `mock-jwt-token-${Date.now()}`;
-      const userToSave = matched
-        ? { ...matched, token: mockToken }
-        : {
-          name: email.split('@')[0],
-          firstName: email.split('@')[0].split('.')[0] || 'Student',
-          lastName: email.split('@')[0].split('.')[1] || '',
-          email: email.trim(),
-          role: email.toLowerCase().includes('admin') ? 'ADMIN' : 'STUDENT',
-          token: mockToken,
-        };
-
-      const saved = storage.saveUser(userToSave);
-      setUser(saved);
-      setTokenState(mockToken);
-      return { success: true, user: saved };
+      throw new Error(getErrorMessage(err, 'Login failed'));
     }
   }, []);
 
-  // Registration handler: calls real backend API with graceful offline mock fallback
-  const register = useCallback(async ({ name, email, password, college, major }) => {
+  const register = useCallback(async ({ name, email, password }) => {
     try {
-      const response = await authApi.register({ name, email, password, role: 'STUDENT' });
-      if (response?.success && response.token && response.user) {
-        const savedUser = storage.saveUser({
-          ...response.user,
-          token: response.token,
-          college: college || response.user.college,
-          major: major || response.user.major,
-        });
-        setUser(savedUser);
-        setTokenState(response.token);
-        return { success: true, user: savedUser };
-      }
-      throw new Error(response?.message || 'Registration failed');
+      const response = await authApi.register({ name, email, password });
+      return startSession(response);
     } catch (err) {
-      if (err.response?.data?.message) {
-        throw new Error(err.response.data.message);
-      }
-      if (err.response?.data?.errors?.length) {
-        throw new Error(err.response.data.errors.map((e) => e.message).join(', '));
-      }
-
-      // Fallback if backend offline
-      console.warn('Backend server unreachable; utilizing local registration mock fallback.');
-      const mockToken = `mock-jwt-token-${Date.now()}`;
-      const nameParts = (name || '').trim().split(/\s+/);
-      const newUser = storage.saveUser({
-        name,
-        firstName: nameParts[0] || 'Student',
-        lastName: nameParts.slice(1).join(' ') || '',
-        email: email.trim(),
-        college: college || 'Thapar Institute of Engineering & Technology',
-        major: major || 'Undergraduate',
-        role: email.toLowerCase().includes('admin') ? 'ADMIN' : 'STUDENT',
-        token: mockToken,
-      });
-
-      setUser(newUser);
-      setTokenState(mockToken);
-      return { success: true, user: newUser };
+      throw new Error(getErrorMessage(err, 'Registration failed'));
     }
   }, []);
 
-  // Logout handler
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
-    } catch {
-      // Ignore network errors on logout
     } finally {
       storage.clearUser();
       setUser(null);
@@ -154,32 +85,33 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Profile update handler
+  // Saves name/profileImage on the backend first; extra profile fields (phone, bio...) stay on this device
   const updateProfile = useCallback(async (updates) => {
-    try {
-      // Send name & profileImage to backend if available
-      if (updates.name || updates.avatarUrl) {
-        try {
-          await userApi.updateMe({
-            name: updates.name || [updates.firstName, updates.lastName].filter(Boolean).join(' '),
-            profileImage: updates.avatarUrl,
-          });
-        } catch (apiErr) {
-          console.warn('Could not update backend profile (offline or mock mode):', apiErr.message);
-        }
+    const payload = {};
+    const name = updates.name || [updates.firstName, updates.lastName].filter(Boolean).join(' ');
+    if (name) payload.name = name;
+    if (updates.profileImage !== undefined) payload.profileImage = updates.profileImage;
+
+    let serverUser = null;
+    if (Object.keys(payload).length) {
+      try {
+        serverUser = (await userApi.updateMe(payload)).user;
+      } catch (err) {
+        throw new Error(getErrorMessage(err, 'Could not update your profile'));
       }
-    } finally {
-      const updated = storage.updateUserProfile(updates);
-      setUser(updated);
-      return updated;
     }
+    const updated = storage.updateUserProfile({
+      ...updates,
+      ...(serverUser ? { name: serverUser.name, avatarUrl: serverUser.profileImage || updates.avatarUrl || storage.getCurrentUser()?.avatarUrl } : {}),
+    });
+    setUser(updated);
+    return updated;
   }, []);
 
-  // Role checks
   const normalizedRole = (user?.role || '').toUpperCase();
   const isAdmin = normalizedRole === 'ADMIN';
-  const isStudent = normalizedRole === 'STUDENT' || !user?.role;
-  const isAuthenticated = Boolean(user && user.isLoggedIn);
+  const isStudent = normalizedRole === 'STUDENT';
+  const isAuthenticated = Boolean(user && user.isLoggedIn && token);
 
   const value = {
     user,
@@ -206,4 +138,3 @@ export function useAuth() {
 }
 
 export default AuthContext;
-

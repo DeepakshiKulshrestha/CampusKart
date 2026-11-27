@@ -1,6 +1,5 @@
-import { RotateCcw, SlidersHorizontal, ChevronDown, Check } from 'lucide-react';
-import { CATEGORIES } from '../data/mockData';
-import Button from './Button';
+import { RotateCcw, SlidersHorizontal, ChevronDown, Check, MapPin } from 'lucide-react';
+import { CATEGORIES, CONDITIONS, SORT_OPTIONS } from '../utils/constants';
 
 export default function FilterPanel({
   selectedCategory,
@@ -13,17 +12,16 @@ export default function FilterPanel({
   onConditionChange,
   sortBy,
   onSortChange,
+  location = '',
+  onLocationChange,
   onReset,
   totalResults = 0,
   className = '',
 }) {
-  const conditions = ['All', 'New', 'Like New', 'Excellent', 'Good', 'Fair'];
-  const sortOptions = [
-    { value: 'newest', label: 'Newest Arrivals' },
-    { value: 'price_asc', label: 'Price: Low to High' },
-    { value: 'price_desc', label: 'Price: High to Low' },
-    { value: 'popular', label: 'Most Popular' },
-  ];
+  // Values match the backend enums exactly ("all" = no filter)
+  const conditions = ['All', ...CONDITIONS];
+  const sortOptions = SORT_OPTIONS;
+  const categories = [{ id: 'all', name: 'All Categories' }, ...CATEGORIES.map((c) => ({ id: c, name: c }))];
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -76,7 +74,7 @@ export default function FilterPanel({
           Category
         </label>
         <div className="space-y-1">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const isActive = selectedCategory === cat.id;
             return (
               <button
@@ -176,6 +174,26 @@ export default function FilterPanel({
           })}
         </div>
       </div>
+
+      {/* Location (exact campus location, e.g. "Hostel B") */}
+      {onLocationChange && (
+        <div>
+          <label className="block text-xs font-heading font-bold uppercase tracking-wider text-[#62666F] mb-2.5">
+            Location
+          </label>
+          <div className="relative">
+            <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#62666F]" />
+            <input
+              type="text"
+              placeholder="e.g. Hostel B"
+              value={location}
+              onChange={(e) => onLocationChange(e.target.value)}
+              className="w-full rounded-2xl border border-[#E8E8E8] bg-white py-2 pl-9 pr-3.5 text-xs text-[#111111] placeholder:text-[#62666F]/60 focus:border-[#0638C9] focus:outline-none focus:ring-2 focus:ring-[#0638C9]/20"
+            />
+          </div>
+          <p className="mt-1.5 text-[11px] text-[#62666F]">Exact match, as the seller typed it.</p>
+        </div>
+      )}
     </div>
   );
 }

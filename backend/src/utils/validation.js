@@ -109,7 +109,12 @@ const createInterestSchema = z.object({
   ),
 });
 
-const interestQuerySchema = z.object({ ...pageFields, role: roleFilter, status: optionalEnum(INTEREST_STATUS) });
+const interestQuerySchema = z.object({
+  ...pageFields,
+  role: roleFilter,
+  status: optionalEnum(INTEREST_STATUS),
+  productId: z.preprocess(blankToUndefined, objectId('productId').optional()),
+});
 
 // Who may set which status is checked in the controller (seller: ACCEPTED/REJECTED, buyer: CANCELLED)
 const updateInterestSchema = z.object({ status: z.enum(['ACCEPTED', 'REJECTED', 'CANCELLED']) });

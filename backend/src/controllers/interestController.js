@@ -46,16 +46,17 @@ async function createInterest(req, res, next) {
   }
 }
 
-// GET /api/interests?role=buyer|seller&status=&page=&limit= (protected)
+// GET /api/interests?role=buyer|seller&status=&productId=&page=&limit= (protected)
 async function getInterests(req, res, next) {
   const parsed = interestQuerySchema.safeParse(req.query);
   if (!parsed.success) return validationError(res, parsed.error);
-  const { role, status, page, limit } = parsed.data;
+  const { role, status, productId, page, limit } = parsed.data;
 
   const me = req.user._id;
   const filter =
     role === 'buyer' ? { buyerId: me } : role === 'seller' ? { sellerId: me } : { $or: [{ buyerId: me }, { sellerId: me }] };
   if (status) filter.status = status;
+  if (productId) filter.productId = productId; // e.g. "did I already ask about this product?"
 
   try {
     const [items, total] = await Promise.all([
