@@ -1,8 +1,7 @@
 import { rateLimit } from "express-rate-limit";
 
-// NOTE: when deployed behind a proxy (Render), every request appears to come from the proxy's IP,
-// so all users would share one limit. Add app.set("trust proxy", 1) in index.js at that point.
-// Not enabled for local development.
+// NOTE: behind a proxy (Render), every request would appear to come from the proxy's IP and all users
+// would share one limit. index.js sets app.set("trust proxy", 1) when NODE_ENV=production to fix that.
 
 const WINDOW_MS = 15 * 60 * 1000;
 
