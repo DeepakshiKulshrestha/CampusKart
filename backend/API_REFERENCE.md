@@ -314,16 +314,16 @@ Either side can `PUT /transactions/:id/cancel` while it is `PENDING`.
 
 ## AI endpoints (Node → ML service)
 
-The backend calls Roshni's FastAPI service at `AI_SERVICE_URL` (default `http://localhost:8000`), sending `x-ml-api-key: ML_API_KEY` when that variable is set (required when the ML service runs with `APP_ENV=production`). The browser never calls the ML service directly. Requests time out after 8 s. **Any ML failure gives `503 AI service unavailable` on the AI endpoints only**; listings, search, purchases and admin pages keep working.
+The backend calls Roshni's FastAPI service at `AI_SERVICE_URL` (default `http://localhost:8000`), sending `x-ml-api-key: ML_API_KEY` when that variable is set. It is **required** when the ML service runs with `APP_ENV=production` (as on Render): without it, or with a different value, the ML service answers 401 and the backend's AI endpoints answer 503. The browser never calls the ML service directly. Requests time out after 8 s. **Any ML failure gives `503 AI service unavailable` on the AI endpoints only**; listings, search, purchases and admin pages keep working.
 
-The ML model was trained on its own product catalogue, so the backend maps marketplace categories before calling it: `Cycles` → `Cycles & Transport`, `Accessories` → `Electronics`, `Furniture` / `Appliances` / `Other` → `Daily Essentials` (`Books`, `Electronics`, `Stationery` unchanged). Predictions come from a model trained on **synthetic** data: treat them as suggestions.
+The models (`marketplace-v3-r2`) are trained on the marketplace's own categories, so the backend sends the listing's `category` exactly as stored, and the listing **title** as `itemType` (the price model reads it as text: "Casio FX-991EX calculator" is valued differently from a generic item). Predictions come from a model trained on **synthetic** data: treat them as suggestions.
 
 ### POST /api/ai/price-prediction (logged in)
-Body: `{ "category", "brand"?, "originalPrice" (> 0), "age" (whole months 0–240), "condition", "location"? }`
+Body: `{ "title"? (≤ 100 chars, recommended), "category", "brand"?, "originalPrice" (> 0), "age" (whole months 0–240), "condition", "location"? }`
 
 ```json
-{ "success": true, "predictedPrice": 706.13, "fairPriceRange": { "min": 635.52, "max": 776.75 }, "currency": "INR",
-  "modelVersion": "synthetic-v2-20261020T092258Z", "dataNote": "Baseline trained on synthetic data; ..." }
+{ "success": true, "predictedPrice": 1018.66, "fairPriceRange": { "min": 916.79, "max": 1120.53 }, "currency": "INR",
+  "modelVersion": "marketplace-v3-r2", "dataNote": "Baseline trained on synthetic data; ..." }
 ```
 Every prediction is logged to `ai_predictions` (with `latencyMs`); when the item later sells, the real price is attached so the admin can see real-world accuracy.
 
@@ -339,8 +339,10 @@ Body: `{ "productId" }`. The price and features are read from the database (any 
 ### POST /api/ai/semantic-search (public)
 Body: `{ "query" (2–500 chars), "category"?, "condition"?, "location"? (exact), "minPrice"?, "maxPrice"?, "limit"? (1–50, default 20) }`
 
-1. **Candidates (up to 100 AVAILABLE listings):** vector search over `product_embeddings` (Atlas Vector Search, or in-memory cosine) when `HF_TOKEN` is set **and** embeddings exist; otherwise MongoDB `$text` keyword search with the same filters.
-2. **Re-ranking:** the ML service's `/semantic-search` re-orders the candidates by meaning (needs `HF_TOKEN` in the ML service). If that fails, the retrieval order is kept.
+1. **Candidates (up to 100 AVAILABLE listings):**
+   - with `HF_TOKEN` in the backend **and** `product_embeddings` filled (Devansh's `db:embeddings` + `db:vector-index`): vector search over all listings (Atlas Vector Search, or in-memory cosine);
+   - otherwise (the normal setup): MongoDB `$text` keyword hits, topped up with the newest other listings that match the filters.
+2. **Re-ranking by meaning:** the ML service's `/semantic-search` embeds the query and candidates locally (free `all-MiniLM-L6-v2` model, **no `HF_TOKEN`**) and re-orders them. If the ML service is unavailable, only the keyword hits are returned, in keyword order.
 3. Logged to `search_logs` (`mode: "semantic"`).
 
 ```json
@@ -348,12 +350,12 @@ Body: `{ "query" (2–500 chars), "category"?, "condition"?, "location"? (exact)
   "results": [{ "_id": "...", "title": "Casio FX-991EX Scientific Calculator", "price": 900, "images": ["https://res.cloudinary.com/..."],
                 "sellerId": { "_id": "...", "name": "Asha Rao" }, "...": "same fields as GET /api/products items" }] }
 ```
-`engine` names the path actually used: `atlas-vector-search`, `in-memory-cosine` or `keyword-fallback`, plus `+ml-rerank` when the ML service re-ranked.
+`engine` names the path actually used: `keyword+recent-candidates+ml-rerank` (normal), `keyword-fallback+ml-rerank`, `keyword-fallback` (ML service down), or `atlas-vector-search` / `in-memory-cosine` (+`+ml-rerank`) when backend embeddings are configured.
 
 ### POST /api/ai/suspicion-score (ADMIN)
 Body: `{ "productId" }`. Runs the fraud check now and returns `{ success, score, flagged, flagId, features }`, where `score` is the ML response: `suspicionScore` (0–100), `riskLevel` (`LOW`/`MEDIUM`/`HIGH`), `riskFactors` (`[{ feature, value, reason }]`), `decision` (`FLAG_FOR_REVIEW`/`NO_FLAG`), `modelVersion`.
 
-**Automatic check:** after `POST /api/products` returns 201, the same check runs in the background (`setImmediate`), using the predicted fair price, seller account age, total listings, listings in the last 7 days, reports against the seller, completed sales and the seller's confirmed flags. If the ML service is down it is skipped with a warning. The score is stored on the product (`suspicionScore`, visible to admins only) and a PENDING flag is opened when the decision is `FLAG_FOR_REVIEW`. **The AI never removes listings or restricts users.**
+**Automatic check:** after `POST /api/products` returns 201, the same check runs in the background (`setImmediate`), using the predicted fair price, total listings, listings in the last 7 days, reports against the seller, completed sales and the seller's confirmed flags. If the ML service is down it is skipped with a warning. (`accountAgeInDays` is still sent but the v3 model ignores it: most honest campus sellers have new accounts.) The score is stored on the product (`suspicionScore`, visible to admins only) and a PENDING flag is opened when the decision is `FLAG_FOR_REVIEW`. **The AI never removes listings or restricts users.**
 
 ### GET /api/admin/ai-flags (ADMIN)
 Query: `adminDecision` (`PENDING` | `CONFIRMED` | `DISMISSED`), `page`, `limit`. Sorted riskiest first; includes the product (title, price, original price, category, status, first image) and the seller (name, email, account creation date).
