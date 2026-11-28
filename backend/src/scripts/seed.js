@@ -32,8 +32,48 @@ const CATALOG = {
   Other: [['Guitar (Acoustic)', 'Yamaha', 6000, 12000], ['Badminton Racket', 'Yonex', 800, 3000], ['Yoga Mat', 'Decathlon', 500, 1500]],
 };
 const CONDITION_FACTOR = { New: 0.92, 'Like New': 0.8, Good: 0.65, Fair: 0.5, Poor: 0.35 };
-// Public Cloudinary demo-cloud images — real Cloudinary URLs, so they pass the URL validator
+// One real photo per catalogue item, stored in <CLOUDINARY_FOLDER>/demo/ on our Cloudinary account
+// (free-licence photos from Wikimedia Commons; credits in docs/DEMO_IMAGE_CREDITS.md).
+const DEMO_PHOTO = {
+  "Engineering Mathematics Vol 1": 'engineering-mathematics-vol-1',
+  "Data Structures Using C": 'data-structures-using-c',
+  "Concepts of Physics HC Verma": 'concepts-of-physics-hc-verma',
+  "Let Us C": 'let-us-c',
+  "Operating System Concepts": 'operating-system-concepts',
+  "Casio FX-991EX Calculator": 'casio-fx-991ex-calculator',
+  "Wireless Mouse": 'wireless-mouse',
+  "Bluetooth Earphones": 'bluetooth-earphones',
+  "Mechanical Keyboard": 'mechanical-keyboard',
+  "Arduino Uno Kit": 'arduino-uno-kit',
+  "27\" Monitor": '27-monitor',
+  "Laptop": 'laptop',
+  "Study Table": 'study-table',
+  "Plastic Chair": 'plastic-chair',
+  "Bookshelf": 'bookshelf',
+  "Bean Bag": 'bean-bag',
+  "Geared Cycle 21-speed": 'geared-cycle-21-speed',
+  "City Bike": 'city-bike',
+  "Mountain Bike": 'mountain-bike',
+  "Engineering Drawing Kit": 'engineering-drawing-kit',
+  "Scientific Notebook Pack": 'scientific-notebook-pack',
+  "Drafter": 'drafter',
+  "Laptop Backpack": 'laptop-backpack',
+  "Smart Watch": 'smart-watch',
+  "Power Bank 20000mAh": 'power-bank-20000mah',
+  "Electric Kettle": 'electric-kettle',
+  "Table Fan": 'table-fan',
+  "Mini Fridge": 'mini-fridge',
+  "Room Heater": 'room-heater',
+  "Guitar (Acoustic)": 'guitar',
+  "Badminton Racket": 'badminton-racket',
+  "Yoga Mat": 'yoga-mat',
+};
+const CLOUD = process.env.CLOUDINARY_CLOUD_NAME;
+const PHOTO_FOLDER = `${process.env.CLOUDINARY_FOLDER || 'campuskart'}/demo`;
+// Fallback when the cloud name is unknown: Cloudinary's public demo image (a flower), still a valid Cloudinary URL
 const IMG = (w, i) => `https://res.cloudinary.com/demo/image/upload/w_${w},h_${w},c_fill/v1/sample.jpg?seed=${i}`;
+const productImage = (title, i) =>
+  CLOUD && DEMO_PHOTO[title] ? `https://res.cloudinary.com/${CLOUD}/image/upload/${PHOTO_FOLDER}/${DEMO_PHOTO[title]}.jpg` : IMG(600, i);
 
 function buildProduct(sellers, i) {
   const category = pick(C.CATEGORIES);
@@ -49,7 +89,7 @@ function buildProduct(sellers, i) {
     title: `${title}${Math.random() < 0.3 ? ' (barely used)' : ''}`,
     description: `${brand} ${title.toLowerCase()} in ${condition.toLowerCase()} condition, used for about ${age} months. ${pick(['Selling as I graduate.', 'Upgraded to a newer one.', 'No longer needed.', 'Moving out of hostel.'])} Pick up from ${pick(LOCATIONS)}.`,
     category, brand, originalPrice, price, age, condition,
-    images: Array.from({ length: rand(1, 3) }, (_, k) => IMG(600, `${i}-${k}`)),
+    images: [productImage(title, i)],
     location: pick(LOCATIONS),
     status: Math.random() < 0.85 ? 'AVAILABLE' : 'SOLD',
     suspicionScore: rand(0, 25),
