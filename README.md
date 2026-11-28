@@ -2,7 +2,7 @@
 
 A college-only, second-hand marketplace. Students list things they no longer need (books, electronics, furniture, cycles…), other students on the same campus express interest, the seller accepts, and the buyer pays through CampusKart. The platform keeps a small commission on every completed sale, and admins moderate listings, users and reports from a dashboard.
 
-> **Real college marketplace first, meaningful AI on top.** Three AI features (price suggestions, semantic search and suspicious-listing detection) are being built in `ml-service/` and will plug into the backend later. The marketplace works fully without them.
+> **Real college marketplace first, meaningful AI on top.** Three AI features run in `ml-service/` and are reached through the backend: price suggestions with a fair-price badge, smart (semantic) search, and suspicious-listing detection for admin review. The marketplace works fully even when the ML service is down; the AI parts just switch off quietly.
 
 ## Architecture
 
@@ -27,7 +27,7 @@ Browser ──▶ React + Vite + Tailwind (frontend/, port 5173)
 |---|---|
 | Frontend | React 19, Vite, Tailwind CSS, React Router, Axios, Recharts |
 | Backend | Node.js 22, Express 5, Mongoose (MongoDB Atlas), JWT, bcrypt, Zod, Multer + Cloudinary, Helmet, express-rate-limit |
-| ML service | Python 3.11, FastAPI, scikit-learn / XGBoost, Sentence Transformers (via Hugging Face) |
+| ML service | Python 3.11+ (3.13/3.14 tested), FastAPI, scikit-learn, XGBoost, Isolation Forest, Sentence Transformers via Hugging Face |
 | Deployment | Vercel (frontend), Render (backend + ML service), Docker |
 
 ## Team
@@ -63,16 +63,23 @@ npm run dev               # → http://localhost:5173
 ```
 The dev server must run on `http://localhost:5173`: that is the only browser origin the backend allows by default (`FRONTEND_URL`). If you open the app from another address, add it to `FRONTEND_URL` in `backend/.env` (comma-separated).
 
-### 3. ML service (optional for now)
+### 3. ML service (for the AI features)
 
-The marketplace runs without it. To set it up, follow [ml-service/README.md](ml-service/README.md) and [ml-service/docs/TRAINING_RUNBOOK.md](ml-service/docs/TRAINING_RUNBOOK.md) (the trained model files are not in Git and must be generated locally).
+The trained models are not in Git. Get Roshni's model bundle zip, unpack it into `ml-service/model_artifacts/`, create a Python venv and start the service on port 8000. Exact macOS steps (including the XGBoost `libomp` fix): [ml-service/docs/LOCAL_SETUP_MAC.md](ml-service/docs/LOCAL_SETUP_MAC.md). Background and retraining: [ml-service/README.md](ml-service/README.md), [ml-service/docs/TRAINING_RUNBOOK.md](ml-service/docs/TRAINING_RUNBOOK.md).
+
+```bash
+cd ml-service
+python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt "scikit-learn==1.9.1" "numpy==2.5.4"
+.venv/bin/python -m uvicorn main:app --port 8000      # see LOCAL_SETUP_MAC.md if XGBoost can't find libomp
+```
+With `AI_SERVICE_URL=http://localhost:8000` in `backend/.env`, the backend uses it automatically. Smart search re-ranking also needs `HF_TOKEN` (see the env table below); without it, smart search falls back to keyword retrieval.
 
 ### Docker (optional)
 
 ```bash
 cp ml-service/.env.example ml-service/.env   # compose reads this file even if you skip the ML service
 docker compose up --build backend frontend   # backend on :5001, frontend on :5173
-docker compose up --build                    # everything, once the ML models are trained
+docker compose up --build                    # everything, once ml-service/model_artifacts/ has the models
 ```
 
 ## Environment files
@@ -93,7 +100,7 @@ docker compose up --build                    # everything, once the ML models ar
 
 - **Students:** register/login, profile, create listings with up to 5 photos, browse with keyword search, filters (category, price, condition, location), sorting and pagination, express interest, accept/reject requests as a seller, simulated payment with a commission breakdown, transaction history, report listings, save items (stored on the device).
 - **Admins:** dashboard metrics and charts (sales, commission, transactions by status, top categories, any date range), report moderation, user restriction, listing removal, commission rate settings with history.
-- **Coming with the ML service:** AI price suggestions, a fair-price badge, smart (semantic) search, suspicious-listing flags for admin review, AI analytics.
+- **AI (via the ML service):** price suggestion while listing, GOOD DEAL / FAIR / SLIGHTLY HIGH / OVERPRICED badge on listings, smart search by meaning, automatic suspicious-listing scoring with an admin review queue (the AI only suggests; admins decide), AI analytics and model metrics for admins.
 
 ## Documentation
 
@@ -104,5 +111,6 @@ docker compose up --build                    # everything, once the ML models ar
 | [backend/docs/RELATIONSHIPS.md](backend/docs/RELATIONSHIPS.md) | Collections, references and rules the API must follow |
 | [backend/docs/PRODUCTION.md](backend/docs/PRODUCTION.md) | Production database, credential rotation, backups, indexes |
 | [ml-service/README.md](ml-service/README.md) | ML service: dataset, training and running it |
+| [ml-service/docs/LOCAL_SETUP_MAC.md](ml-service/docs/LOCAL_SETUP_MAC.md) | Running the ML service on a Mac with the trained model bundle |
 | [ml-service/docs/API_AND_MODEL_REFERENCE.md](ml-service/docs/API_AND_MODEL_REFERENCE.md) | ML endpoints and models |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Step-by-step deployment to Render and Vercel |

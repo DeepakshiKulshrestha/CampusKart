@@ -1,8 +1,8 @@
 # Deploying CampusKart
 
-Target setup: **backend on Render**, **frontend on Vercel**, **database on MongoDB Atlas**, **images on Cloudinary**, and later the **ML service on Render**.
+Target setup: **backend on Render**, **frontend on Vercel**, **database on MongoDB Atlas**, **images on Cloudinary**, and the **ML service on Render**.
 
-The backend and frontend can go live **before the ML service is ready**: the marketplace does not depend on it. Do steps 1–6 now and step 7 when Roshni's models are ready.
+The backend and frontend don't depend on the ML service: if it is down, only the AI features switch off. You can deploy steps 1–6 first and add the ML service (step 7) whenever the model bundle is uploaded; the backend's AI endpoints answer 503 until then.
 
 Secrets go into the Render and Vercel dashboards only, never into Git.
 
@@ -15,7 +15,7 @@ Secrets go into the Render and Vercel dashboards only, never into Git.
 3. Generate secrets on your computer (keep them in a password manager):
    ```bash
    openssl rand -hex 32   # JWT_SECRET
-   openssl rand -hex 32   # ML_API_KEY (later, shared by backend and ML service)
+   openssl rand -hex 32   # ML_API_KEY (shared by the backend and the ML service)
    ```
 4. Merge `complete-project` into `main` (via a pull request) so Render and Vercel deploy the finished code.
 
@@ -27,7 +27,7 @@ Atlas → *Network Access*:
 
 ## 2. Backend on Render
 
-**Until the ML service is ready (recommended now): create the backend on its own.**
+**Option A: create the backend on its own** (simplest; add the ML service later in step 7).
 
 1. Render → **New** → **Web Service** → connect the GitHub repo.
 2. Settings:
@@ -51,11 +51,11 @@ Atlas → *Network Access*:
    | `CLOUDINARY_FOLDER` | `campuskart` |
    | `ANALYTICS_TZ` | `Asia/Kolkata` |
    | `FRONTEND_URL` | leave for now; set it in step 4 |
-   | `AI_SERVICE_URL`, `ML_API_KEY`, `HF_TOKEN` | leave empty until step 7 |
+   | `AI_SERVICE_URL`, `ML_API_KEY`, `HF_TOKEN` | set in step 7 (until then the AI features answer 503 and hide themselves) |
 4. Deploy, then open `https://campuskart-backend.onrender.com/api/health` → `{"status":"ok",...}`.
 5. Indexes: production has `autoIndex` off. Run `npm run db:indexes` once from your computer with `MONGODB_URI` pointing at the **production** database (and never run seed/restore/delete scripts against the shared development database).
 
-**Later, with the Blueprint:** `render.yaml` describes both `campuskart-ml` and `campuskart-backend`. Render → **New** → **Blueprint** → pick the repo, and Render creates both services, asking you for every `sync: false` value. If you already created the backend by hand, delete that service first, or keep it and only create the ML service by hand. The Blueprint uses the same names and settings as above.
+**Option B: Blueprint (backend + ML service together):** `render.yaml` describes both `campuskart-ml` and `campuskart-backend`. Render → **New** → **Blueprint** → pick the repo, and Render creates both services, asking you for every `sync: false` value. If you already created the backend by hand, delete that service first, or keep it and only create the ML service by hand. The Blueprint uses the same names and settings as above.
 
 ## 3. Frontend on Vercel
 
@@ -99,10 +99,11 @@ Create the first production admin directly in the database (registration can't c
 - Backups: see §3 of [backend/docs/PRODUCTION.md](backend/docs/PRODUCTION.md) (Atlas snapshots on M10+, or `npm run db:backup` regularly).
 - Check `npm audit` in `backend/` and `frontend/` and update dependencies before the final demo.
 
-## 7. ML service (when Roshni's models are ready)
+## 7. ML service (AI features)
 
 1. Package and upload the model artifacts as described in [ml-service/README.md](ml-service/README.md) and [ml-service/docs/TRAINING_RUNBOOK.md](ml-service/docs/TRAINING_RUNBOOK.md) (`MODEL_ARTIFACT_BUNDLE_URL` / `MODEL_ARTIFACT_BUNDLE_TOKEN`).
 2. Create `campuskart-ml` from `render.yaml` (Blueprint), or by hand with root `ml-service`, Docker, health check `/health`, a 5 GB disk at `/var/data`, and the env vars listed in `render.yaml`. The ML service needs a paid plan for the disk.
 3. Use **one** `ML_API_KEY` value on both services. Set `HF_TOKEN` (Hugging Face token with Inference Providers permission) on both.
 4. On the backend set `AI_SERVICE_URL=https://campuskart-ml.onrender.com`, `ML_API_KEY`, `HF_TOKEN`.
-5. Check `https://campuskart-ml.onrender.com/health`, then the AI features in the app once the backend AI endpoints are added.
+5. Check `https://campuskart-ml.onrender.com/health`, then in the app: Create Listing → "Suggest a price"; a product page shows the fair-price badge; Marketplace → "Smart search (AI)"; Admin → AI Flags / AI Analytics. With `APP_ENV=production` the ML service rejects calls without the right `x-ml-api-key`, so a wrong `ML_API_KEY` shows up as 503 on the AI endpoints.
+6. **Semantic search over all listings:** run `npm run db:embeddings` and then `npm run db:vector-index` once against the production database (both need `HF_TOKEN` in the backend's environment; Devansh owns these scripts). Until then smart search uses keyword retrieval (`engine: keyword-fallback`), plus ML re-ranking when `HF_TOKEN` is set on the ML service.

@@ -38,7 +38,10 @@ Backend: Node/Express in `backend/`. All routes start with `/api`.
 | 403 | Logged in but not allowed (not the owner / not an admin / account restricted) |
 | 404 | Not found (removed listings count as not found) |
 | 409 | Conflict: duplicate, wrong status for this action, product no longer available |
+| 422 | Fair-price check impossible (listing price or original price is ₹0) |
 | 429 | Rate limit hit: 300 requests per 15 min per IP on `/api`, 20 per 15 min on login + register |
+| 502 | The ML service rejected the request (a backend/ML contract mismatch, not a user error) |
+| 503 | `AI service unavailable`: the ML service is down, timed out, or misconfigured. Only AI endpoints return this; the marketplace keeps working |
 
 ### Enum values (from `src/models/constants.js`)
 
@@ -98,6 +101,14 @@ Backend: Node/Express in `backend/`. All routes start with `/api`.
 | PUT | `/api/admin/users/:id/restrict` | ADMIN |
 | GET | `/api/admin/products` | ADMIN |
 | PUT | `/api/admin/products/:id/remove` | ADMIN |
+| GET | `/api/admin/ai-flags` | ADMIN |
+| PUT | `/api/admin/ai-flags/:id/review` | ADMIN |
+| GET | `/api/admin/analytics/ai` | ADMIN |
+| GET | `/api/admin/model-metrics` | ADMIN |
+| POST | `/api/ai/price-prediction` | logged in |
+| POST | `/api/ai/price-fairness` | public |
+| POST | `/api/ai/semantic-search` | public (a token only adds `userId` to the search log) |
+| POST | `/api/ai/suspicion-score` | ADMIN |
 
 ---
 
@@ -301,17 +312,57 @@ Either side can `PUT /transactions/:id/cancel` while it is `PENDING`.
 
 ---
 
-## Coming later (AI, needs the ML service)
+## AI endpoints (Node → ML service)
 
-These are planned (blueprint Modules 7–10) and **not implemented yet**; they will call Roshni's FastAPI service at `AI_SERVICE_URL` with `ML_API_KEY`:
+The backend calls Roshni's FastAPI service at `AI_SERVICE_URL` (default `http://localhost:8000`), sending `x-ml-api-key: ML_API_KEY` when that variable is set (required when the ML service runs with `APP_ENV=production`). The browser never calls the ML service directly. Requests time out after 8 s. **Any ML failure gives `503 AI service unavailable` on the AI endpoints only**; listings, search, purchases and admin pages keep working.
 
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| POST | `/api/ai/price-prediction` | logged in | Suggested price + fair range for a new listing |
-| POST | `/api/ai/price-fairness` | public | GOOD DEAL / FAIR / SLIGHTLY HIGH / OVERPRICED label for a listing |
-| POST | `/api/ai/semantic-search` | public | Natural-language search with the marketplace filters |
-| POST | `/api/ai/suspicion-score` | ADMIN | Fraud score for a listing (also run automatically after a listing is created) |
-| GET | `/api/admin/ai-flags` | ADMIN | Listings flagged by the fraud model |
-| PUT | `/api/admin/ai-flags/:id/review` | ADMIN | Admin decision CONFIRMED / DISMISSED |
-| GET | `/api/admin/analytics/ai` | ADMIN | Prediction accuracy, flags, search analytics |
-| GET | `/api/admin/model-metrics` | ADMIN | Model metrics reported by the ML service |
+The ML model was trained on its own product catalogue, so the backend maps marketplace categories before calling it: `Cycles` → `Cycles & Transport`, `Accessories` → `Electronics`, `Furniture` / `Appliances` / `Other` → `Daily Essentials` (`Books`, `Electronics`, `Stationery` unchanged). Predictions come from a model trained on **synthetic** data: treat them as suggestions.
+
+### POST /api/ai/price-prediction (logged in)
+Body: `{ "category", "brand"?, "originalPrice" (> 0), "age" (whole months 0–240), "condition", "location"? }`
+
+```json
+{ "success": true, "predictedPrice": 706.13, "fairPriceRange": { "min": 635.52, "max": 776.75 }, "currency": "INR",
+  "modelVersion": "synthetic-v2-20261020T092258Z", "dataNote": "Baseline trained on synthetic data; ..." }
+```
+Every prediction is logged to `ai_predictions` (with `latencyMs`); when the item later sells, the real price is attached so the admin can see real-world accuracy.
+
+### POST /api/ai/price-fairness (public)
+Body: `{ "productId" }`. The price and features are read from the database (any `listedPrice` in the body is ignored).
+
+```json
+{ "success": true, "productId": "...", "label": "GOOD DEAL", "listedPrice": 600, "predictedPrice": 755.26,
+  "deviationPercent": -20.56, "fairPriceRange": { "min": 679.73, "max": 830.78 }, "modelVersion": "..." }
+```
+`label`: `GOOD DEAL` (≥ 15 % below the estimate), `FAIR` (within ±15 %), `SLIGHTLY HIGH` (15–30 % above), `OVERPRICED` (> 30 % above). Removed listing → 404; price or original price ₹0 → 422.
+
+### POST /api/ai/semantic-search (public)
+Body: `{ "query" (2–500 chars), "category"?, "condition"?, "location"? (exact), "minPrice"?, "maxPrice"?, "limit"? (1–50, default 20) }`
+
+1. **Candidates (up to 100 AVAILABLE listings):** vector search over `product_embeddings` (Atlas Vector Search, or in-memory cosine) when `HF_TOKEN` is set **and** embeddings exist; otherwise MongoDB `$text` keyword search with the same filters.
+2. **Re-ranking:** the ML service's `/semantic-search` re-orders the candidates by meaning (needs `HF_TOKEN` in the ML service). If that fails, the retrieval order is kept.
+3. Logged to `search_logs` (`mode: "semantic"`).
+
+```json
+{ "success": true, "engine": "keyword-fallback", "query": "engineering calculator for maths",
+  "results": [{ "_id": "...", "title": "Casio FX-991EX Scientific Calculator", "price": 900, "images": ["https://res.cloudinary.com/..."],
+                "sellerId": { "_id": "...", "name": "Asha Rao" }, "...": "same fields as GET /api/products items" }] }
+```
+`engine` names the path actually used: `atlas-vector-search`, `in-memory-cosine` or `keyword-fallback`, plus `+ml-rerank` when the ML service re-ranked.
+
+### POST /api/ai/suspicion-score (ADMIN)
+Body: `{ "productId" }`. Runs the fraud check now and returns `{ success, score, flagged, flagId, features }`, where `score` is the ML response: `suspicionScore` (0–100), `riskLevel` (`LOW`/`MEDIUM`/`HIGH`), `riskFactors` (`[{ feature, value, reason }]`), `decision` (`FLAG_FOR_REVIEW`/`NO_FLAG`), `modelVersion`.
+
+**Automatic check:** after `POST /api/products` returns 201, the same check runs in the background (`setImmediate`), using the predicted fair price, seller account age, total listings, listings in the last 7 days, reports against the seller, completed sales and the seller's confirmed flags. If the ML service is down it is skipped with a warning. The score is stored on the product (`suspicionScore`, visible to admins only) and a PENDING flag is opened when the decision is `FLAG_FOR_REVIEW`. **The AI never removes listings or restricts users.**
+
+### GET /api/admin/ai-flags (ADMIN)
+Query: `adminDecision` (`PENDING` | `CONFIRMED` | `DISMISSED`), `page`, `limit`. Sorted riskiest first; includes the product (title, price, original price, category, status, first image) and the seller (name, email, account creation date).
+
+### PUT /api/admin/ai-flags/:id/review (ADMIN)
+Body: `{ "adminDecision": "CONFIRMED" | "DISMISSED", "adminNote"?, "removeListing"?: true }`. Only PENDING flags can be reviewed (409 otherwise). Sets `reviewedBy` / `reviewedAt`; `removeListing` soft-deletes the listing. Confirmed flags count against the seller in future checks. → `{ success, flag, listingRemoved }`.
+
+### GET /api/admin/analytics/ai (ADMIN)
+Query: `range`, `from`, `to` (same as the other analytics). → `{ success, ai: { priceIntelligence: { predictionsServed, averagePredictedPrice, byModelVersion, evaluatedOnSales, mae, rmse, r2 }, safety: { flagsRaised, flagsPending, flagsConfirmed, flagsDismissed, reportsFiled, ... }, search: { totalSearches, semanticSearches, keywordSearches, zeroResultSearches, topCategories, topQueries } } }`. `mae`/`rmse`/`r2` are measured against **real completed sales** and are `null` until there is enough data (never invented).
+
+### GET /api/admin/model-metrics (ADMIN)
+The price model's validation report from the ML service (`selectedEstimator`, `modelVersion`, `finalHoldoutMetrics: { maeInr, rmseInr, r2 }`, `candidateMetrics`, `caveat`, ...). 503 when the ML service is down.
