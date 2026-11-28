@@ -2,7 +2,7 @@
 
 Target setup: **backend on Render**, **frontend on Vercel**, **database on MongoDB Atlas**, **images on Cloudinary**, and the **ML service on Render**.
 
-The backend and frontend don't depend on the ML service: if it is down, only the AI features switch off. You can deploy steps 1–6 first and add the ML service (step 7) whenever the model bundle is uploaded; the backend's AI endpoints answer 503 until then.
+The backend and frontend don't depend on the ML service: if it is down, only the AI features switch off (the backend's AI endpoints answer 503). The ML service is self-contained: the trained models are in Git and its Docker image also bakes in the free search model, so it needs no disk, no model download and no `HF_TOKEN`.
 
 Secrets go into the Render and Vercel dashboards only, never into Git.
 
@@ -51,11 +51,12 @@ Atlas → *Network Access*:
    | `CLOUDINARY_FOLDER` | `campuskart` |
    | `ANALYTICS_TZ` | `Asia/Kolkata` |
    | `FRONTEND_URL` | leave for now; set it in step 4 |
-   | `AI_SERVICE_URL`, `ML_API_KEY`, `HF_TOKEN` | set in step 7 (until then the AI features answer 503 and hide themselves) |
+   | `AI_SERVICE_URL`, `ML_API_KEY` | set in step 7 (until then the AI features answer 503 and hide themselves) |
+   | `HF_TOKEN` | optional, leave empty: only needed if Devansh's Atlas vector-search embeddings are enabled (step 7.6) |
 4. Deploy, then open `https://campuskart-backend.onrender.com/api/health` → `{"status":"ok",...}`.
 5. Indexes: production has `autoIndex` off. Run `npm run db:indexes` once from your computer with `MONGODB_URI` pointing at the **production** database (and never run seed/restore/delete scripts against the shared development database).
 
-**Option B: Blueprint (backend + ML service together):** `render.yaml` describes both `campuskart-ml` and `campuskart-backend`. Render → **New** → **Blueprint** → pick the repo, and Render creates both services, asking you for every `sync: false` value. If you already created the backend by hand, delete that service first, or keep it and only create the ML service by hand. The Blueprint uses the same names and settings as above.
+**Option B: Blueprint (backend + ML service together, recommended):** `render.yaml` describes both `campuskart-ml` and `campuskart-backend`. Render → **New** → **Blueprint** → pick the repo, and Render creates both services, asking you for every `sync: false` value (for the ML service only `ML_API_KEY`). If you already created the backend by hand, delete that service first, or keep it and only create the ML service by hand. The Blueprint uses the same names and settings as above.
 
 ## 3. Frontend on Vercel
 
@@ -101,9 +102,19 @@ Create the first production admin directly in the database (registration can't c
 
 ## 7. ML service (AI features)
 
-1. Package and upload the model artifacts as described in [ml-service/README.md](ml-service/README.md) and [ml-service/docs/TRAINING_RUNBOOK.md](ml-service/docs/TRAINING_RUNBOOK.md) (`MODEL_ARTIFACT_BUNDLE_URL` / `MODEL_ARTIFACT_BUNDLE_TOKEN`).
-2. Create `campuskart-ml` from `render.yaml` (Blueprint), or by hand with root `ml-service`, Docker, health check `/health`, a 5 GB disk at `/var/data`, and the env vars listed in `render.yaml`. The ML service needs a paid plan for the disk.
-3. Use **one** `ML_API_KEY` value on both services. Set `HF_TOKEN` (Hugging Face token with Inference Providers permission) on both.
-4. On the backend set `AI_SERVICE_URL=https://campuskart-ml.onrender.com`, `ML_API_KEY`, `HF_TOKEN`.
+1. Nothing to upload: the models (`ml-service/model_artifacts/*/current/`, version `marketplace-v3-r2`) are in Git and copied into the Docker image, and the Dockerfile downloads the free `all-MiniLM-L6-v2` search model at build time.
+2. Create `campuskart-ml` from `render.yaml` (Blueprint), or by hand:
+   | Field | Value |
+   |---|---|
+   | Root directory / Docker context | `ml-service` (Dockerfile `ml-service/Dockerfile`) |
+   | Runtime | Docker |
+   | Instance type | **Starter** (512 MB, see the warning below) or bigger |
+   | Health check path | `/health` |
+   | Environment | `APP_ENV=production`, `PORT=10000`, `ML_API_KEY=<the value from step 0>` |
+   | Disk | none (the old 5 GB disk, `MODEL_ARTIFACT_BUNDLE_URL`/`_TOKEN`, `MODEL_STORAGE_ROOT`, `PRICE_MODEL_PATH`, `FRAUD_MODEL_PATH` and `HF_TOKEN` are no longer used; delete them if an older setup has them) |
+3. Use **one** `ML_API_KEY` value on both services. In production mode the ML service rejects every call except `/health` without it.
+4. On the backend set `AI_SERVICE_URL=https://campuskart-ml.onrender.com` and `ML_API_KEY` (same value).
+
+> **512 MB memory warning.** Render's Free and Starter instances have 512 MB of RAM. The ML service needs roughly 320 MB once XGBoost, the fraud model and the ONNX search model are loaded, plus spikes while a search embeds up to 100 listings, so it runs close to the limit. Keep a single uvicorn worker (the Dockerfile's default), and watch the Render logs and Metrics after deploying: if you see *"Ran out of memory (used over 512MB)"* or unexplained restarts, move the ML service to the **Standard** plan (2 GB). The Free plan also sleeps after 15 minutes idle, so the first AI call after a pause can take about a minute; the backend's 8-second timeout then answers 503 for that request.
 5. Check `https://campuskart-ml.onrender.com/health`, then in the app: Create Listing → "Suggest a price"; a product page shows the fair-price badge; Marketplace → "Smart search (AI)"; Admin → AI Flags / AI Analytics. With `APP_ENV=production` the ML service rejects calls without the right `x-ml-api-key`, so a wrong `ML_API_KEY` shows up as 503 on the AI endpoints.
-6. **Semantic search over all listings:** run `npm run db:embeddings` and then `npm run db:vector-index` once against the production database (both need `HF_TOKEN` in the backend's environment; Devansh owns these scripts). Until then smart search uses keyword retrieval (`engine: keyword-fallback`), plus ML re-ranking when `HF_TOKEN` is set on the ML service.
+6. **Optional, catalogue-wide vector search:** smart search already works without it: the backend sends keyword hits plus the newest matching listings, and the ML service ranks them by meaning (`engine: keyword+recent-candidates+ml-rerank`). Vector retrieval over *all* listings only helps once the catalogue is large (thousands of listings, where a relevant item may be neither a keyword match nor recent). It needs `HF_TOKEN` (paid Hugging Face Inference credits) in the backend and a one-time `npm run db:embeddings` + `npm run db:vector-index` against the production database (Devansh owns these scripts).

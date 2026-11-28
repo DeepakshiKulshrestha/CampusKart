@@ -65,14 +65,14 @@ The dev server must run on `http://localhost:5173`: that is the only browser ori
 
 ### 3. ML service (for the AI features)
 
-The trained models are not in Git. Get Roshni's model bundle zip, unpack it into `ml-service/model_artifacts/`, create a Python venv and start the service on port 8000. Exact macOS steps (including the XGBoost `libomp` fix): [ml-service/docs/LOCAL_SETUP_MAC.md](ml-service/docs/LOCAL_SETUP_MAC.md). Background and retraining: [ml-service/README.md](ml-service/README.md), [ml-service/docs/TRAINING_RUNBOOK.md](ml-service/docs/TRAINING_RUNBOOK.md).
+The trained models (`marketplace-v3-r2`, about 1 MB, synthetic data) are **in Git** under `ml-service/model_artifacts/*/current/`, so nothing needs downloading or retraining. Use Python 3.11–3.13 with the versions the models were trained with. Exact macOS steps (Python 3.13 via `uv`, the XGBoost `libomp` fix, production-mode key test): [ml-service/docs/LOCAL_SETUP_MAC.md](ml-service/docs/LOCAL_SETUP_MAC.md). Background and retraining: [ml-service/README.md](ml-service/README.md), [ml-service/docs/TRAINING_RUNBOOK.md](ml-service/docs/TRAINING_RUNBOOK.md).
 
 ```bash
 cd ml-service
-python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt "scikit-learn==1.9.1" "numpy==2.5.4"
+python3.13 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt "scikit-learn==1.7.0" "numpy==2.3.1"
 .venv/bin/python -m uvicorn main:app --port 8000      # see LOCAL_SETUP_MAC.md if XGBoost can't find libomp
 ```
-With `AI_SERVICE_URL=http://localhost:8000` in `backend/.env`, the backend uses it automatically. Smart search re-ranking also needs `HF_TOKEN` (see the env table below); without it, smart search falls back to keyword retrieval.
+With `AI_SERVICE_URL=http://localhost:8000` in `backend/.env`, the backend uses it automatically. Smart search ranks by meaning inside the ML service with a free local model (downloaded once, about 90 MB): **no `HF_TOKEN` needed**. If the ML service runs with `APP_ENV=production`, put the same `ML_API_KEY` in `backend/.env`.
 
 ### Docker (optional)
 
@@ -86,9 +86,9 @@ docker compose up --build                    # everything, once ml-service/model
 
 | File | Variables | Template |
 |---|---|---|
-| `backend/.env` | `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_FOLDER`, `PORT`, `NODE_ENV`, `FRONTEND_URL`, `AI_SERVICE_URL`, `ML_API_KEY`, `HF_TOKEN`, `ANALYTICS_TZ` (+ optional ones) | [backend/.env.example](backend/.env.example) |
+| `backend/.env` | `MONGODB_URI`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_FOLDER`, `PORT`, `NODE_ENV`, `FRONTEND_URL`, `AI_SERVICE_URL`, `ML_API_KEY`, `ANALYTICS_TZ`; optional `HF_TOKEN` (only for Atlas vector-search embeddings) | [backend/.env.example](backend/.env.example) |
 | `frontend/.env` | `VITE_API_URL` | [frontend/.env.example](frontend/.env.example) |
-| `ml-service/.env` | `PORT`, `APP_ENV`, `ML_API_KEY`, `HF_TOKEN`, model paths | [ml-service/.env.example](ml-service/.env.example) |
+| `ml-service/.env` | `PORT`, `APP_ENV`, `ML_API_KEY` (no `HF_TOKEN` needed; models load from `model_artifacts/` by default) | [ml-service/.env.example](ml-service/.env.example) |
 
 ## Test accounts
 
