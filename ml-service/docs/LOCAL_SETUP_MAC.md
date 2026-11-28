@@ -1,107 +1,102 @@
 # Running the ML service on macOS (zsh)
 
-These are the exact steps used to run Roshni's trained models on a Mac (Apple Silicon, macOS 15+). They use the **pre-trained model bundle**; you do not need to generate the dataset or retrain.
+These are the exact steps used to run Roshni's trained models on a Mac (Apple Silicon). The active models are **committed to Git** under `ml-service/model_artifacts/{price,fraud}/current/` (synthetic data, about 1 MB), so there is nothing to download, unzip or retrain.
 
 All commands run from the repository root unless noted.
 
-## 1. Unpack the model bundle
-
-Put the bundle zip (e.g. `campuskart-model-bundle.zip`, shared by Roshni) into `ml-service/model_artifacts/`, then:
+## 1. Check the models are there
 
 ```zsh
-cd ml-service/model_artifacts
-unzip -l campuskart-model-bundle.zip          # look before extracting: only price/… fraud/… and bundle-manifest.json
-unzip -o campuskart-model-bundle.zip
-ls price/current fraud/current                 # model.joblib, metrics.json, MODEL_CARD.md in each
-cd ../..
+ls ml-service/model_artifacts/price/current ml-service/model_artifacts/fraud/current
+# model.joblib  metrics.json  MODEL_CARD.md   (in each folder)
 ```
 
-Optional integrity check against the manifest:
+Current version: `marketplace-v3-r2` (price: XGBoost regressor; fraud: Isolation Forest). Any other files in `model_artifacts/` (for example an old bundle zip) are ignored by Git and not used.
+
+## 2. Python environment (match the training versions)
+
+The models were trained with **Python 3.13, scikit-learn 1.7.0, numpy 2.3.1** (see `model_artifacts/price/current/metrics.json` → `versions`). Use those exact versions: newer scikit-learn still loads the models but warns `InconsistentVersionWarning` for every component, and results may drift. scikit-learn 1.7.0 has no Python 3.14 build, so you need Python 3.13 (3.11–3.13 work).
+
+If `python3 --version` is not 3.11–3.13, the simplest way to get 3.13 without touching Homebrew is [uv](https://docs.astral.sh/uv/):
 
 ```zsh
-python3 - <<'EOF'
-import json, hashlib
-m = json.load(open('ml-service/model_artifacts/bundle-manifest.json'))
-for f, h in m['files'].items():
-    ok = hashlib.sha256(open('ml-service/model_artifacts/' + f, 'rb').read()).hexdigest() == h
-    print('OK ' if ok else 'BAD', f)
-EOF
+python3 -m pip install --user uv          # or: brew install uv
+uv python install 3.13
+PY="$(uv python find 3.13)"               # path to python3.13
 ```
 
-`ml-service/model_artifacts/` (including the zip) is in `.gitignore`. Never commit it.
-
-## 2. Python environment
-
-The models were trained with **Python 3.13.5, scikit-learn 1.9.1, numpy 2.5.4** (see `price/current/metrics.json` → `versions`). Install the same scikit-learn and numpy so the pickled models load exactly. Python 3.11–3.14 all work; this setup used Python 3.14 (the only version on the machine).
+Then create the venv:
 
 ```zsh
 cd ml-service
-python3 -m venv .venv
+"$PY" -m venv .venv                       # or python3.13 / python3.11 if you have it
 .venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt "scikit-learn==1.9.1" "numpy==2.5.4"
+.venv/bin/python -m pip install -r requirements.txt "scikit-learn==1.7.0" "numpy==2.3.1"
 ```
 
 ### XGBoost needs OpenMP (`libomp`)
 
-The price model is an XGBoost regressor. On a Mac without Homebrew's `libomp`, importing XGBoost fails with
+Without Homebrew's `libomp`, XGBoost fails with
 `XGBoost Library (libxgboost.dylib) could not be loaded … Library not loaded: @rpath/libomp.dylib`.
 
-Pick one fix:
-
-- **Usual fix:** `brew install libomp` (then you can skip the variable below).
-- **No Homebrew changes:** scikit-learn's wheel already contains a `libomp.dylib`; point the loader at it when starting Python:
+- **Usual fix:** `brew install libomp` (then skip the variable below).
+- **No Homebrew changes:** scikit-learn's wheel already ships `libomp.dylib`; point the loader at it:
   ```zsh
-  export DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.14/site-packages/sklearn/.dylibs"   # adjust python3.14 to your version
+  export DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.13/site-packages/sklearn/.dylibs"
   ```
 
-Check that both models load:
+Check both models load without version warnings:
 
 ```zsh
-.venv/bin/python -c "import joblib; [print(m, type(joblib.load(f'model_artifacts/{m}/current/model.joblib')).__name__) for m in ('price','fraud')]"
+.venv/bin/python -W always -c "from price_prediction.predict import predict_price as p; print(p({'category':'Books','originalPrice':500,'age':6,'condition':'Good'}))"
 ```
 
 ## 3. Start the service
 
-Still inside `ml-service/`:
+Still inside `ml-service/`, in its own terminal tab:
 
 ```zsh
-DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.14/site-packages/sklearn/.dylibs" \
+DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.13/site-packages/sklearn/.dylibs" \
   .venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-> **Don't start it through `nohup`, `env` or `sudo`.** macOS strips `DYLD_*` variables when launching protected system programs, so XGBoost loses `libomp` again: `/health` still answers but `/predict-price` fails with HTTP 500 (`Library not loaded: @rpath/libomp.dylib` in the log). Run it in its own terminal tab as above, or use `brew install libomp` and skip the variable entirely.
+> **Don't start it through `nohup`, `env` or `sudo`.** macOS strips `DYLD_*` variables when launching protected system programs, so XGBoost loses `libomp` again: `/health` still answers but `/predict-price` fails with HTTP 500 (`Library not loaded: @rpath/libomp.dylib` in the log). Or use `brew install libomp` and skip the variable entirely.
 
-No `ml-service/.env` is needed for local development (defaults: development mode, models under `./model_artifacts`, no API key). Interactive docs: http://localhost:8000/docs
+The first start downloads the free search model `all-MiniLM-L6-v2` (about 90 MB, ONNX via `fastembed`) into `ml-service/.cache/fastembed` (ignored by Git). After that it runs fully offline. **No `HF_TOKEN` is needed.**
+
+Development mode (the default) needs no `ml-service/.env` and no API key. Interactive docs: http://localhost:8000/docs
+
+### Test it like production (API key on)
+
+With `APP_ENV=production` the service rejects every call except `/health` unless it carries `x-ml-api-key: <ML_API_KEY>`. To test this locally, start it with the same key as `backend/.env`:
+
+```zsh
+APP_ENV=production ML_API_KEY=<same value as backend/.env> \
+DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.13/site-packages/sklearn/.dylibs" \
+  .venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+`/docs` is turned off in production mode.
 
 ## 4. Check it
 
 ```zsh
 curl http://localhost:8000/health
-curl http://localhost:8000/model-metrics
+curl http://localhost:8000/model-metrics                       # add -H 'x-ml-api-key: …' in production mode
 curl -X POST http://localhost:8000/predict-price -H 'Content-Type: application/json' \
-  -d '{"category":"Electronics","brand":"Casio","originalPrice":1500,"age":12,"condition":"Good"}'
+  -d '{"category":"Electronics","itemType":"Casio FX-991EX calculator","brand":"Casio","originalPrice":1500,"age":12,"condition":"Good"}'
 ```
 
-Expected: `{"status":"ok",...}`, the metrics JSON (holdout MAE ≈ ₹210.74, RMSE ≈ ₹1,804.59, R² ≈ 0.896, all on **synthetic** data), and a prediction with `predictedPrice`, `fairPriceRange` and `modelVersion`.
+Expected: `{"status":"ok",...}`, the metrics JSON (holdout MAE ≈ ₹495, RMSE ≈ ₹2,322, R² ≈ 0.855, all on **synthetic** data), and a prediction with `predictedPrice`, `fairPriceRange` and `modelVersion: marketplace-v3-r2`.
 
 ## 5. Connect the backend
 
-`backend/.env` → `AI_SERVICE_URL=http://localhost:8000`. `ML_API_KEY` is only required when the ML service runs with `APP_ENV=production`; use the same value on both sides then.
+`backend/.env`: `AI_SERVICE_URL=http://localhost:8000`, and `ML_API_KEY=<same value>` if the ML service runs in production mode. The backend sends the key automatically.
 
-## 6. Semantic search needs a Hugging Face token
+## 6. Stop it
 
-`POST /semantic-search` embeds text with Hugging Face Inference Providers and returns 503 without `HF_TOKEN`. To enable it, create a token at huggingface.co → Settings → Access Tokens (fine-grained, "Make calls to Inference Providers") and start the service with it:
+`Ctrl+C` in its terminal, or `pkill -f "uvicorn main:app"`.
 
-```zsh
-HF_TOKEN=hf_xxx DYLD_FALLBACK_LIBRARY_PATH=... .venv/bin/python -m uvicorn main:app --port 8000
-```
+## Retraining (only for model changes)
 
-(or put `HF_TOKEN=...` into `ml-service/.env` and export it). Without a token the backend falls back to keyword search, so the app keeps working.
-
-## 7. Stop it
-
-Press `Ctrl+C` in the terminal running uvicorn, or `pkill -f "uvicorn main:app"`.
-
-## Retraining (only if the bundle doesn't load)
-
-Follow [TRAINING_RUNBOOK.md](TRAINING_RUNBOOK.md), replacing PowerShell paths with zsh ones (`.venv/bin/python` instead of `.venv\Scripts\python.exe`, `/` instead of `\`). A smaller dataset is enough for local work: `python data/generate_synthetic.py --rows 100000`. This was **not** needed for this setup.
+See [TRAINING_RUNBOOK.md](TRAINING_RUNBOOK.md) (written for PowerShell: use `.venv/bin/python` instead of `.venv\Scripts\python.exe` and `/` instead of `\`). Not needed to run the service.
