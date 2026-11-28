@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Receipt, ShoppingBag, Store, ChevronLeft, ChevronRight, Ban } from 'lucide-react';
 import { transactionApi, getErrorMessage } from '../services/api';
@@ -23,21 +23,26 @@ export default function TransactionHistoryPage() {
   const [items, setItems] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  // Switching tabs quickly starts overlapping requests; only the newest one may update the page
+  const latestRequest = useRef(0);
   const [error, setError] = useState('');
   const [rowError, setRowError] = useState({}); // { [txId]: message }
   const [cancellingId, setCancellingId] = useState(null);
 
   const load = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     setIsLoading(true);
     setError('');
     try {
       const data = await transactionApi.list({ role, status, page, limit: PAGE_SIZE });
+      if (requestId !== latestRequest.current) return;
       setItems(data.items);
       setPagination(data.pagination);
     } catch (err) {
+      if (requestId !== latestRequest.current) return;
       setError(getErrorMessage(err, 'Could not load your transactions'));
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequest.current) setIsLoading(false);
     }
   }, [role, status, page]);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Inbox, Send, CheckCircle2, XCircle, CreditCard, Ban, ChevronLeft, ChevronRight } from 'lucide-react';
 import { interestApi, getErrorMessage } from '../services/api';
@@ -32,6 +32,8 @@ export default function InterestInboxPage() {
   const [interests, setInterests] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  // Switching tabs quickly starts overlapping requests; only the newest one may update the page
+  const latestRequest = useRef(0);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -40,16 +42,19 @@ export default function InterestInboxPage() {
   const [isActing, setIsActing] = useState(false);
 
   const load = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     setIsLoading(true);
     setError('');
     try {
       const data = await interestApi.list({ role, status: status === 'ALL' ? '' : status, page, limit: PAGE_SIZE });
+      if (requestId !== latestRequest.current) return;
       setInterests(data.items);
       setPagination(data.pagination);
     } catch (err) {
+      if (requestId !== latestRequest.current) return;
       setError(getErrorMessage(err, 'Could not load your interests'));
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequest.current) setIsLoading(false);
     }
   }, [role, status, page]);
 

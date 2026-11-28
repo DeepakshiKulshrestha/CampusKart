@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, X, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { productApi, aiApi, getErrorMessage } from '../services/api';
@@ -32,6 +32,8 @@ export default function MarketplacePage() {
   const [error, setError] = useState('');
   const [smartInfo, setSmartInfo] = useState(null); // { engine } or { fallback: message }
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  // Filters can change faster than responses arrive; only the newest request may update the page
+  const latestRequest = useRef(0);
 
   // Text inputs are typed locally and pushed to the URL after a 400 ms pause (debounce)
   const [searchInput, setSearchInput] = useState(filters.q);
@@ -77,6 +79,8 @@ export default function MarketplacePage() {
   }, [searchParams.toString()]);
 
   const loadProducts = useCallback(async () => {
+    const requestId = ++latestRequest.current;
+    const isStale = () => requestId !== latestRequest.current;
     setIsLoading(true);
     setError('');
     setSmartInfo(null);
@@ -91,12 +95,14 @@ export default function MarketplacePage() {
       try {
         // Results come back ranked by meaning; there is no sorting or paging in this mode
         const data = await aiApi.semanticSearch({ query: filters.q.trim(), ...params, limit: SMART_LIMIT });
+        if (isStale()) return;
         setProducts(data.results);
         setPagination({ page: 1, total: data.results.length, totalPages: 1 });
         setSmartInfo({ engine: data.engine });
         setIsLoading(false);
         return;
       } catch (err) {
+        if (isStale()) return;
         // Fall back to the normal keyword search below and say so
         setSmartInfo({ fallback: `Smart search is unavailable (${getErrorMessage(err)}). Showing regular search results.` });
       }
@@ -113,13 +119,15 @@ export default function MarketplacePage() {
         page,
         limit: PAGE_SIZE,
       });
+      if (isStale()) return;
       setProducts(data.items);
       setPagination(data.pagination);
     } catch (err) {
+      if (isStale()) return;
       setProducts([]);
       setError(getErrorMessage(err, 'Could not load listings'));
     } finally {
-      setIsLoading(false);
+      if (!isStale()) setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams.toString()]);
