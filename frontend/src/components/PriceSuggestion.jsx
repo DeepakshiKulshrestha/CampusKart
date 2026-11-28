@@ -17,6 +17,7 @@ export default function PriceSuggestion({ form, onUsePrice }) {
     setState({ status: 'loading', data: null, message: '' });
     try {
       const data = await aiApi.predictPrice({
+        title: form.title.trim() || undefined,
         category: form.category,
         brand: form.brand.trim() || undefined,
         originalPrice: Number(form.originalPrice),

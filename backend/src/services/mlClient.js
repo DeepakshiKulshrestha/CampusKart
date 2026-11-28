@@ -48,26 +48,19 @@ export async function callMl(path, body, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}
   throw Object.assign(new Error('The AI service could not process this request'), { status: 502, detail: data?.detail });
 }
 
-// The ML model was trained on its own product catalogue (ml-service/data/product_catalog.json), whose
-// categories differ from the marketplace's. Map each marketplace category to the closest one it knows.
-const ML_CATEGORY = {
-  Books: 'Books',
-  Electronics: 'Electronics',
-  Stationery: 'Stationery',
-  Cycles: 'Cycles & Transport',
-  Accessories: 'Electronics',
-  Furniture: 'Daily Essentials',
-  Appliances: 'Daily Essentials',
-  Other: 'Daily Essentials',
-};
-
-/** Marketplace product fields → the ML service's PriceFeatures. */
-export function toPriceFeatures({ category, brand, originalPrice, age, condition }) {
-  return {
-    category: ML_CATEGORY[category] || category,
+/**
+ * Marketplace product fields → the ML service's PriceFeatures. The model is trained on the marketplace's own
+ * categories (ml-service/price_prediction/categories.py), so the category is sent exactly as stored.
+ * The listing title goes in itemType: the model reads it as text (e.g. "Casio FX-991EX") to refine the estimate.
+ */
+export function toPriceFeatures({ title, category, brand, originalPrice, age, condition }) {
+  const features = {
+    category,
     brand: brand && brand !== 'Generic' ? brand : 'Unknown',
     originalPrice: Number(originalPrice),
     age: Number(age),
     condition,
   };
+  if (title && String(title).trim()) features.itemType = String(title).trim().slice(0, 100);
+  return features;
 }

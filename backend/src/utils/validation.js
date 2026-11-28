@@ -180,6 +180,8 @@ const reviewReportSchema = z.object({
 
 // ---- AI ----
 const pricePredictionSchema = z.object({
+  // Optional listing title: the price model reads it as text to tell e.g. a Casio calculator from a generic one
+  title: z.preprocess(blankToUndefined, z.string().trim().max(100, 'Title must be at most 100 characters').optional()),
   category: z.enum(CATEGORIES),
   brand: z.preprocess(blankToUndefined, z.string().trim().max(50, 'Brand must be at most 50 characters').optional()),
   // The price model needs a real starting price, so 0 is not allowed here (it is allowed on listings)

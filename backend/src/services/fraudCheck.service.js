@@ -31,7 +31,7 @@ export async function runFraudCheck(productId) {
     productId: product._id,
     sellerId,
     endpoint: 'predict-price',
-    inputFeatures: { category: product.category, brand: product.brand, originalPrice: product.originalPrice, age: product.age, condition: product.condition, location: product.location },
+    inputFeatures: { itemType: product.title, category: product.category, brand: product.brand, originalPrice: product.originalPrice, age: product.age, condition: product.condition, location: product.location },
     predictedPrice: prediction.predictedPrice,
     fairPriceRange: prediction.fairPriceRange,
     modelVersion: prediction.modelVersion,
@@ -57,7 +57,8 @@ export async function runFraudCheck(productId) {
     previousReports,
     completedSalesCount,
     rejectedListingsCount,
-    // averagePriceDeviation (seller's past pricing pattern) is optional in the ML contract and not tracked yet: left at its default 0
+    // accountAgeInDays is still part of the ML contract but the current model ignores it (most honest campus sellers are new).
+    // averagePriceDeviation (seller's past pricing pattern) is optional and not tracked yet: left at its default 0
   };
 
   // 3. Score and store. AiFlag.recordScore updates product.suspicionScore and opens/updates a PENDING flag if needed.
