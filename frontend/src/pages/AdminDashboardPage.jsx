@@ -1,10 +1,12 @@
 import { useSearchParams } from 'react-router-dom';
-import { LayoutDashboard, Flag, Users, Tag, Percent, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Flag, Users, Tag, Percent, ShieldAlert, Brain } from 'lucide-react';
 import OverviewTab from './admin/OverviewTab';
 import ReportsTab from './admin/ReportsTab';
 import UsersTab from './admin/UsersTab';
 import ListingsTab from './admin/ListingsTab';
 import CommissionTab from './admin/CommissionTab';
+import AiFlagsTab from './admin/AiFlagsTab';
+import AiAnalyticsTab from './admin/AiAnalyticsTab';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard, Component: OverviewTab },
@@ -12,7 +14,8 @@ const TABS = [
   { id: 'users', label: 'Users', icon: Users, Component: UsersTab },
   { id: 'listings', label: 'Listings', icon: Tag, Component: ListingsTab },
   { id: 'commission', label: 'Commission', icon: Percent, Component: CommissionTab },
-  { id: 'ai', label: 'AI', icon: Sparkles, Component: AiComingSoon },
+  { id: 'ai-flags', label: 'AI Flags', icon: ShieldAlert, Component: AiFlagsTab },
+  { id: 'ai-analytics', label: 'AI Analytics', icon: Brain, Component: AiAnalyticsTab },
 ];
 
 // Only ADMIN users reach this page (ProtectedRoute requiredRole="ADMIN"), and every /api/admin call is
@@ -30,7 +33,7 @@ export default function AdminDashboardPage() {
             <span>Admin</span>
           </div>
           <h1 className="text-3xl font-heading font-black text-[#111111] sm:text-4xl tracking-tight">Admin Dashboard</h1>
-          <p className="mt-1 text-xs text-[#62666F] sm:text-sm">Marketplace health, moderation and commission.</p>
+          <p className="mt-1 text-xs text-[#62666F] sm:text-sm">Marketplace health, moderation, commission and AI.</p>
         </div>
 
         <nav className="flex flex-wrap gap-2" aria-label="Admin sections">
@@ -52,22 +55,6 @@ export default function AdminDashboardPage() {
 
         <Component />
       </div>
-    </div>
-  );
-}
-
-// AI flags queue, AI analytics and model metrics arrive once the ML service is connected
-function AiComingSoon() {
-  return (
-    <div className="rounded-4xl border-2 border-dashed border-[#E8E8E8] bg-white p-12 text-center">
-      <div className="mx-auto grid h-14 w-14 place-items-center rounded-3xl bg-[#0638C9]/10 text-[#0638C9]">
-        <Sparkles className="h-7 w-7" />
-      </div>
-      <h2 className="mt-4 text-xl font-heading font-black text-[#111111]">AI features coming soon</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm text-[#62666F]">
-        The AI flags review queue, AI analytics (price model accuracy, search stats) and model metrics will appear here once the ML service is connected.
-        The AI will only suggest; admins always make the final decision.
-      </p>
     </div>
   );
 }
