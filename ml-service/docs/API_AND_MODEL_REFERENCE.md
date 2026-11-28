@@ -36,10 +36,10 @@ Accepts listing and seller-behavior features and returns a 0–100 review signal
 
 | Variable | Purpose |
 | --- | --- |
-| `HF_TOKEN` | Hugging Face Inference Providers token. Backend/host secret only; never expose it to a browser or Git. |
+| `HF_TOKEN` | Not needed. Only used if you opt into the paid hosted mode with `EMBEDDING_PROVIDER=huggingface`; the default local model runs without it. Never expose it to a browser or Git. |
 | `EMBEDDING_MODEL` | Hosted embedding model ID; defaults to `sentence-transformers/all-MiniLM-L6-v2`. |
-| `ML_API_KEY` | Node-to-ML shared key, required when `APP_ENV=production`; distinct from `HF_TOKEN`. |
-| `APP_ENV` | `production` enables API-key enforcement, disables docs, and verifies hosted embeddings at startup. |
+| `ML_API_KEY` | Node-to-ML shared key, required when `APP_ENV=production`. Set the same value in the backend. |
+| `APP_ENV` | `production` enables API-key enforcement, disables docs, and loads the search model at startup. |
 | `PRICE_MODEL_PATH`, `FRAUD_MODEL_PATH` | Optional overrides for active trained model files. |
 | `MODEL_STORAGE_ROOT` | Root folder for model artifacts. |
 | `MODEL_ARTIFACT_BUNDLE_URL`, `MODEL_ARTIFACT_BUNDLE_TOKEN` | Optional private HTTPS model bundle restore settings. |

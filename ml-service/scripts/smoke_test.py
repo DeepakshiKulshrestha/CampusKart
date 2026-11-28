@@ -53,6 +53,10 @@ check(not any(f["feature"] == "accountAgeInDays" for f in s()["riskFactors"]), "
 bad = s(listedPrice=150, totalListings=40, listingsLast7Days=20, previousReports=4, rejectedListingsCount=5)
 check(bad["riskLevel"] == "HIGH", f"spam/scam profile: {bad['suspicionScore']} {bad['riskLevel']}")
 check(s(listedPrice=100, averagePriceDeviation=.9)["decision"] == "FLAG_FOR_REVIEW", "new seller at 90% below fair price is still flagged for review")
+fake_iphone = s(listedPrice=4000, predictedFairPrice=53000)
+check(fake_iphone["riskLevel"] == "HIGH", f"fake iPhone (Rs 4,000 vs ~Rs 53,000 fair) scores clearly high: {fake_iphone['suspicionScore']} {fake_iphone['riskLevel']}")
+check(s(listedPrice=1850)["riskLevel"] != "HIGH", "overpricing alone is not treated like a scam")
+check(s(listedPrice=700)["riskLevel"] == "LOW", "honest quick sale at 30% under fair stays LOW")
 
 # 3. Semantic search: free local embeddings + typo correction, and the keyword-only fallback.
 from semantic_search.search import search_products
@@ -64,6 +68,14 @@ for q, want in [("calculator for exams", 0), ("bike to ride around campus", 1), 
                 ("computer for coding", 4), ("maths textbook", 5), ("bag to carry books", 6), ("music on the go", 7), ("play sports", 8), ("kettel", 2), ("cyle", 1)]:
     result = search_products(q, products, {}, 3)
     check(bool(result["results"]) and result["results"][0]["id"] == want, f"search '{q}' -> {products[want]['title']} [{result['engine'][-26:]}]")
+furniture = [dict(id=i, title=t, category=c, price=500, condition="Good") for i, (t, c) in enumerate(
+    [("Operating System Concepts textbook", "Books"), ("Engineering Mathematics by BS Grewal", "Books"), ("Wooden study chair", "Furniture"),
+     ("Study table with drawer", "Furniture"), ("Let Us C by Kanetkar", "Books"), ("LED table lamp", "Appliances")])]
+top = search_products("something to sit on while studying", furniture, {}, 2)["results"]
+check(bool(top) and top[0]["category"] == "Furniture", f"search 'something to sit on while studying' -> {top[0]['title'] if top else None}")
+from semantic_search.search import _correct
+check(_correct("something to sit on while studying", ["Wiley operating system concepts"]) == "something to sit on while studying",
+      "spelling correction leaves ordinary words alone ('while' must not become 'wiley')")
 docs = [p["title"] for p in products]
 check(int(_local_scores("something to boil water", docs).argmax()) == 2, "keyword-only fallback still ranks 'boil water' -> kettle")
 sys.exit(1 if failures else 0)

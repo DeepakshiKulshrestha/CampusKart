@@ -79,6 +79,8 @@ CONCEPTS = {
     "laptop": "computer notebook dell hp lenovo", "phone": "smartphone mobile iphone samsung redmi", "mobile": "smartphone phone",
     "music": "headphones earphones earbuds speaker guitar keyboard", "listen": "headphones earphones earbuds speaker",
     "sleep": "mattress bed cot bean bag", "bed": "mattress cot", "study": "table desk chair lamp bookshelf books",
+    "studying": "study table desk chair lamp", "sit": "chair stool sofa bean bag seat", "sitting": "chair stool sofa seat",
+    "seat": "chair stool sofa", "chair": "seat stool study", "sofa": "couch seat bean bag", "furniture": "chair table desk shelf cupboard",
     "desk": "table study chair", "read": "books novel textbook lamp", "textbook": "book books", "maths": "mathematics engineering book",
     "math": "mathematics engineering book", "cool": "cooler fan", "hot": "heater cooler fan", "summer": "cooler fan",
     "winter": "heater jacket hoodie", "bag": "backpack laptop bag suitcase", "carry": "backpack laptop bag suitcase",
@@ -98,11 +100,13 @@ def _correct(query: str, texts: list[str]) -> str:
     """Fix misspelled query words ("kettel", "cyle") against words that actually appear in the listings."""
     from difflib import get_close_matches
     import re
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
     vocab = {w for t in texts for w in re.findall(r"[a-z]{4,}", t.casefold())} | set(CONCEPTS)
     fixed = []
     for word in query.split():
         bare = word.strip(".,!?").casefold()
-        if len(bare) >= 4 and bare.isalpha() and bare not in vocab:
+        # Ordinary English words are never typos: without this, "while" became "wiley" (a book publisher in the listings)
+        if len(bare) >= 4 and bare.isalpha() and bare not in vocab and bare not in ENGLISH_STOP_WORDS:
             match = get_close_matches(bare, vocab, n=1, cutoff=0.78)
             fixed.append(match[0] if match else word)
         else:
