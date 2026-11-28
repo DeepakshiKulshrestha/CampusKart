@@ -4,11 +4,16 @@
 import Product from '../models/Product.model.js';
 import AiPrediction from '../models/AiPrediction.model.js';
 import AiFlag from '../models/AiFlag.model.js';
+import ProductEmbedding from '../models/ProductEmbedding.model.js';
+import SearchLog from '../models/SearchLog.model.js';
 import { callMl, toPriceFeatures } from '../services/mlClient.js';
 import { runFraudCheck } from '../services/fraudCheck.service.js';
+import { provider } from '../services/embedding.service.js';
+import { semanticProductSearch, toMlCandidates } from '../services/vectorSearch.service.js';
 import {
   pricePredictionSchema,
   productIdBodySchema,
+  semanticSearchSchema,
   aiFlagQuerySchema,
   reviewAiFlagSchema,
   validationError,
@@ -180,4 +185,80 @@ async function reviewAiFlag(req, res, next) {
   }
 }
 
-export { sendAiError, pricePrediction, priceFairness, suspicionScore, listAiFlags, reviewAiFlag };
+// ---- Semantic search ----
+const CANDIDATE_LIMIT = 100;
+// Same fields as GET /api/products items, so the frontend can render them with the same card
+const RESULT_FIELDS = 'title price originalPrice age condition category brand location status images sellerId createdAt';
+
+// 1. Candidates: real semantic retrieval (product_embeddings + Hugging Face) when it is configured,
+//    otherwise MongoDB $text keyword search with the same filters
+async function findCandidates({ query, category, condition, location, minPrice, maxPrice }) {
+  const semanticReady = provider() === 'huggingface' && (await ProductEmbedding.estimatedDocumentCount()) > 0;
+  if (semanticReady) {
+    try {
+      const { engine, products } = await semanticProductSearch({
+        query,
+        filters: { category, condition, minPrice, maxPrice },
+        limit: CANDIDATE_LIMIT,
+      });
+      // semanticProductSearch has no location filter: apply the marketplace's exact-match rule here
+      return { engine, products: location ? products.filter((p) => p.location === location) : products };
+    } catch (err) {
+      console.warn(`[semantic-search] vector retrieval failed, using keyword fallback: ${err.message}`);
+    }
+  }
+
+  const filter = { status: 'AVAILABLE', $text: { $search: query } };
+  if (category) filter.category = category;
+  if (condition) filter.condition = condition;
+  if (location) filter.location = location;
+  if (minPrice !== undefined || maxPrice !== undefined) {
+    filter.price = {};
+    if (minPrice !== undefined) filter.price.$gte = minPrice;
+    if (maxPrice !== undefined) filter.price.$lte = maxPrice;
+  }
+  const products = await Product.find(filter, { score: { $meta: 'textScore' } })
+    .sort({ score: { $meta: 'textScore' } })
+    .limit(CANDIDATE_LIMIT)
+    .lean();
+  return { engine: 'keyword-fallback', products };
+}
+
+// POST /api/ai/semantic-search (public) { query, category?, condition?, location?, minPrice?, maxPrice?, limit? }
+async function semanticSearch(req, res, next) {
+  const parsed = semanticSearchSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return validationError(res, parsed.error);
+  const { query, limit, ...filters } = parsed.data;
+
+  try {
+    let { engine, products } = await findCandidates({ query, ...filters });
+
+    // 2. Optional re-ranking by the ML service (needs HF_TOKEN there). If it fails, keep the retrieval order.
+    if (products.length > 1) {
+      try {
+        const ranked = await callMl('/semantic-search', { query, products: toMlCandidates(products), limit: Math.min(products.length, 100) });
+        const byId = new Map(products.map((p) => [String(p._id), p]));
+        const reordered = (ranked.results || []).map((r) => byId.get(String(r.id))).filter(Boolean);
+        if (reordered.length) {
+          products = reordered;
+          engine = `${engine}+ml-rerank`;
+        }
+      } catch {
+        // AI service down or HF_TOKEN missing: retrieval order stands, and `engine` says so honestly
+      }
+    }
+
+    const top = products.slice(0, limit).map((p) => p._id);
+    const docs = await Product.find({ _id: { $in: top }, status: 'AVAILABLE' }).select(RESULT_FIELDS).populate('sellerId', 'name').lean();
+    const byId = new Map(docs.map((d) => [String(d._id), d]));
+    const results = top.map((id) => byId.get(String(id))).filter(Boolean);
+
+    // 3. Search analytics (never blocks or fails the request)
+    SearchLog.log({ query, mode: 'semantic', category: filters.category, resultCount: results.length, userId: req.user?._id });
+    return res.json({ success: true, engine, query, results });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export { sendAiError, pricePrediction, priceFairness, suspicionScore, listAiFlags, reviewAiFlag, semanticSearch };

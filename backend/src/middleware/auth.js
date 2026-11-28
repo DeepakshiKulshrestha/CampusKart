@@ -32,6 +32,21 @@ async function protect(req, res, next) {
   }
 }
 
+// For public routes that behave the same for everyone but want to know who is asking (e.g. search logs).
+// A valid token sets req.user; a missing or bad token is simply ignored.
+async function optionalAuth(req, res, next) {
+  const [scheme, token] = (req.headers.authorization || '').split(' ');
+  if (scheme === 'Bearer' && token) {
+    try {
+      const user = await User.findById(verifyToken(token).id);
+      if (user && !user.isRestricted) req.user = user;
+    } catch {
+      // ignore: the route is public
+    }
+  }
+  next();
+}
+
 // Role guard. Must run after protect, e.g. router.get('/x', protect, authorize('ADMIN'), handler)
 function authorize(...roles) {
   return (req, res, next) => {
@@ -45,4 +60,4 @@ function authorize(...roles) {
   };
 }
 
-export { protect, authorize };
+export { protect, optionalAuth, authorize };
