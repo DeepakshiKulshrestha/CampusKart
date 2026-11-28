@@ -30,7 +30,8 @@ If activation is blocked, use `ml-service/.venv/Scripts/python.exe` in place of 
 Review `data/product_catalog.json`, then run from `ml-service/`:
 
 ```powershell
-python data/generate_synthetic.py --rows 1050000 --seed 20261020 --chunk-size 50000
+python scripts/build_catalog.py   # optional: regenerate data/product_catalog.json
+python data/generate_synthetic.py --rows 400000 --seed 20261128 --chunk-size 50000
 ```
 
 Expected outputs are `data/synthetic/campuskart_listings_v2.csv` and its `.manifest.json`. Check row count, byte size, catalog version, and SHA-256. Keep the manifest with any copied CSV. Catalog prices, sale outcomes, and fraud scenarios are assumptions, not observed market facts; see [DATA_DICTIONARY.md](../data/DATA_DICTIONARY.md).
@@ -40,7 +41,7 @@ Expected outputs are `data/synthetic/campuskart_listings_v2.csv` and its `.manif
 Price model:
 
 ```powershell
-python price_prediction/train.py --data data/synthetic/campuskart_listings_v2.csv
+python -m price_prediction.train --data data/synthetic/campuskart_listings_v2.csv
 ```
 
 It compares available regressors using held-out MAE and saves a dated run plus the active copy under `model_artifacts/price/`. Inspect the JSON output, metrics, and model card.
@@ -48,7 +49,8 @@ It compares available regressors using held-out MAE and saves a dated run plus t
 Listing-risk model:
 
 ```powershell
-python fraud_detection/train.py --data data/synthetic/campuskart_listings_v2.csv
+python -m fraud_detection.train --data data/synthetic/campuskart_listings_v2.csv
+python -m scripts.smoke_test   # must exit 0 before deploying
 ```
 
 It trains an Isolation Forest on generated benign seller profiles and saves artifacts under `model_artifacts/fraud/`. Synthetic scenario diagnostics are not validated fraud-detection performance. Treat scores as review hints only.
@@ -131,3 +133,17 @@ Before routing real traffic:
 6. Add operational controls before production use: request/concurrency limits, monitoring and alerts, dependency/image scanning, non-root container execution, access-controlled artifacts, rollback, and incident ownership.
 
 The included Dockerfile runs the ML API only. It is not a complete CampusKart marketplace deployment.
+
+## Category vocabulary and new sellers
+
+The catalog uses the marketplace API's eight categories directly (`price_prediction/categories.py` mirrors `backend/src/models/constants.js`; unknown labels fall back to `Other`, and the previous model's labels such as "Daily Essentials" are still accepted). The price model reads the free-text listing title with TF-IDF and learns a resale ratio, so it works for titles it has never seen. Risk training excludes account age, and about 30% of honest training sellers are brand new, so a new seller is never penalised for being new.
+
+## Semantic search (free, no token)
+
+By default `/semantic-search` runs the public `all-MiniLM-L6-v2` model locally through ONNX (`fastembed`), blends it with keyword matching, and corrects misspelled query words. No Hugging Face token, credits or network calls are needed at runtime; the Docker build bakes the model into the image (about 90 MB, roughly 320 MB RAM for the whole service). Install locally with `python -m pip install -r requirements.txt`; the first run downloads the model into `ml-service/.cache/fastembed`.
+
+Optional: set `EMBEDDING_PROVIDER=huggingface` plus `HF_TOKEN` to use the paid hosted API instead. If embeddings ever fail, search drops to keyword-only ranking rather than returning an error. The reported engine name always starts with `huggingface-inference:` because the frontend only preserves the ML ranking for that prefix.
+
+## Deploying
+
+The active models (`model_artifacts/{price,fraud}/current`, about 1 MB, synthetic data only) are committed and baked into the Docker image, so no private bundle host is needed. Leave `MODEL_STORAGE_ROOT`, `PRICE_MODEL_PATH`, `FRAUD_MODEL_PATH` and `MODEL_ARTIFACT_BUNDLE_URL` unset. Set `APP_ENV=production`, `ML_API_KEY` (same value in the backend) . `HF_TOKEN` is not needed.

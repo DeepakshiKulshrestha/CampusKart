@@ -11,24 +11,12 @@ services:
         value: production
       - key: PORT
         value: "10000"
+      # Shared secret between the backend and this service. Set the same value in both Render
+      # dashboards (Environment tab). Never commit it.
       - key: ML_API_KEY
         sync: false
-      - key: HF_TOKEN
-        sync: false
-      - key: MODEL_ARTIFACT_BUNDLE_URL
-        sync: false
-      - key: MODEL_ARTIFACT_BUNDLE_TOKEN
-        sync: false
-      - key: MODEL_STORAGE_ROOT
-        value: /var/data/models
-      - key: PRICE_MODEL_PATH
-        value: /var/data/models/price/current/model.joblib
-      - key: FRAUD_MODEL_PATH
-        value: /var/data/models/fraud/current/model.joblib
-    disk:
-      name: campuskart-ml-data
-      mountPath: /var/data
-      sizeGB: 5
+    # Models (ml-service/model_artifacts/*/current) and the search model are baked into the Docker
+    # image, so no disk, model bundle URL or HF_TOKEN is needed.
 
   # Node/Express backend (Deepakshi). Deploy order: ML service first (or skip it until the models are ready),
   # then this service, then the frontend on Vercel. See DEPLOYMENT.md.
@@ -65,6 +53,6 @@ services:
       - key: ML_API_KEY
         sync: false # same value as on campuskart-ml
       - key: HF_TOKEN
-        sync: false
+        sync: false # optional: only for Atlas vector-search embeddings (backend/src/services/embedding.service.js); ML re-ranking needs none
       - key: ANALYTICS_TZ
         value: Asia/Kolkata

@@ -1,0 +1,40 @@
+{
+  "modelName": "CampusKart listing anomaly detector",
+  "modelVersion": "marketplace-v3-r2",
+  "algorithm": "IsolationForest trained on generated benign profiles",
+  "rows": 400000,
+  "fitRows": 305460,
+  "holdoutRows": 80000,
+  "features": [
+    "priceDeviation",
+    "totalListings",
+    "listingsLast7Days",
+    "previousReports",
+    "completedSalesCount",
+    "rejectedListingsCount",
+    "averagePriceDeviation"
+  ],
+  "excludedFields": [
+    "account_age_days"
+  ],
+  "transformation": "log1p(non-negative features), then StandardScaler",
+  "expectedContamination": 0.045,
+  "randomSeed": 42,
+  "syntheticScenarioDiagnostics": {
+    "syntheticScenarioRocAuc": 1.0,
+    "syntheticScenarioAveragePrecision": 1.0
+  },
+  "dataset": {
+    "file": "campuskart_listings_v2.csv",
+    "sha256": "2892476111b6bb35c1c193f5394c73b8aa024f7e00c99fc88f089eecec540c2a",
+    "generatorSeed": 20261128,
+    "syntheticOnly": true
+  },
+  "versions": {
+    "python": "3.13.5",
+    "scikitLearn": "1.7.0",
+    "numpy": "2.3.1"
+  },
+  "trainedAtUtc": "2026-11-28T11:11:05.094117+00:00",
+  "caveat": "The scenario labels are produced by the same hand-designed generator assumptions. Diagnostic scores are not real fraud detection performance."
+}

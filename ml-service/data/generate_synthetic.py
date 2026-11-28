@@ -22,7 +22,8 @@ COLUMNS = [
     "completed_sales_count", "rejected_listings_count", "average_price_deviation", "synthetic_suspicious_label",
 ]
 CONDITIONS = np.array(["New", "Like New", "Good", "Fair", "Poor"])
-CONDITION_FACTOR = np.array([1.00, 0.88, 0.72, 0.53, 0.34])
+# Relative to "Good" (=1.0). Item-level resale factors already encode the used-vs-new discount.
+CONDITION_FACTOR = np.array([1.10, 1.05, 1.00, 0.80, 0.55])
 
 
 def sha256_file(path: Path) -> str:
@@ -72,13 +73,14 @@ def write_dataset(path: Path, rows: int, seed: int, chunk_size: int) -> dict:
             cond_idx[~reusable] = rng.choice(2, int((~reusable).sum()), p=[0.58, 0.42])
             condition = CONDITIONS[cond_idx]
             decay_months = np.fromiter((item.get("decayMonths", 72) for item in selected), dtype=float, count=count)
-            resale = np.fromiter((item.get("resaleFactor", 0.82) for item in selected), dtype=float, count=count)
+            resale = np.fromiter((item.get("resaleFactor", 0.76) for item in selected), dtype=float, count=count)
             age_factor = np.where(reusable, np.exp(-age / decay_months), 1.0)
             expiry_factor = np.where(is_perishable, np.clip(0.55 + expiry_days / 730.0, 0.55, 0.99), 1.0)
             opened_factor = np.where(opened == 1, 0.45, 1.0)
-            fair = original * np.where(reusable, 0.76, resale) * CONDITION_FACTOR[cond_idx] * age_factor * expiry_factor * opened_factor
+            resale = np.minimum(0.92, 0.45 + 0.65 * resale)  # used-market retention for a Good item at age 0
+            fair = original * resale * CONDITION_FACTOR[cond_idx] * age_factor * expiry_factor * opened_factor
             fair *= rng.lognormal(mean=-0.5 * 0.13**2, sigma=0.13, size=count)
-            fair = np.maximum(5, fair)
+            fair = np.maximum(5, np.minimum(fair, original * 0.97))
 
             suspicious = rng.random(count) < 0.045
             deviation = rng.normal(0.0, 0.11, count)
@@ -90,6 +92,16 @@ def write_dataset(path: Path, rows: int, seed: int, chunk_size: int) -> dict:
             reports = np.clip(rng.poisson(0.12, count), 0, 30)
             completed = np.clip(rng.poisson(2.4, count), 0, 100)
             rejected = np.clip(rng.poisson(0.10, count), 0, 30)
+            # ~30% of honest sellers are brand new: first listings, no sales yet. Account age
+            # is NOT a model feature, so these profiles must look normal to the risk model.
+            new_seller = (~suspicious) & (rng.random(count) < 0.30)
+            n_new = int(new_seller.sum())
+            account_age[new_seller] = rng.integers(0, 30, n_new)
+            total_listings[new_seller] = rng.integers(1, 4, n_new)
+            listings_week[new_seller] = np.minimum(total_listings[new_seller], rng.integers(1, 4, n_new))
+            reports[new_seller] = 0
+            completed[new_seller] = 0
+            rejected[new_seller] = 0
             account_age[suspicious] = rng.integers(1, 30, int(suspicious.sum()))
             total_listings[suspicious] = rng.integers(5, 60, int(suspicious.sum()))
             listings_week[suspicious] = rng.integers(8, 30, int(suspicious.sum()))
@@ -137,7 +149,7 @@ def write_dataset(path: Path, rows: int, seed: int, chunk_size: int) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--rows", type=int, default=1_050_000)
+    parser.add_argument("--rows", type=int, default=400_000)
     parser.add_argument("--seed", type=int, default=20261020)
     parser.add_argument("--chunk-size", type=int, default=50_000)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)

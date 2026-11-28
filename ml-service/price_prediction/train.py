@@ -22,7 +22,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import Ridge
 from sklearn.preprocessing import OneHotEncoder
+
+from .categories import CATEGORIES, normalize_category
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "synthetic" / "campuskart_listings_v2.csv"
@@ -30,11 +34,29 @@ ARTIFACT_ROOT = Path(os.getenv("MODEL_STORAGE_ROOT", ROOT / "model_artifacts")) 
 CURRENT_DIR = ARTIFACT_ROOT / "current"
 MODEL_PATH = Path(os.getenv("PRICE_MODEL_PATH", CURRENT_DIR / "model.joblib"))
 METRICS_PATH = CURRENT_DIR / "metrics.json"
-CATEGORICAL = ["category", "item_type", "brand", "variant", "item_kind", "condition"]
-NUMERIC = ["original_price_inr", "age_months", "pack_quantity", "is_perishable", "days_until_expiry", "opened"]
-FEATURES = CATEGORICAL + NUMERIC
+CATEGORICAL = ["category", "brand", "condition"]
+TEXT = "title"
+NUMERIC = ["original_price_inr", "log_original_price", "age_months"]
+FEATURES = CATEGORICAL + [TEXT] + NUMERIC
 TARGET = "sale_price_inr"
-USECOLS = FEATURES + [TARGET, "completed_sale"]
+USECOLS = ["category", "item_type", "brand", "variant", "condition", "original_price_inr", "age_months", TARGET, "completed_sale"]
+
+
+def build_frame(data: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
+    """Create model inputs. The marketplace sends a free-text listing title, so training titles are
+    synthesised from item/brand/variant words with random drops and reordering to imitate that."""
+    rng = np.random.default_rng(seed)
+    data = data.copy()
+    data["category"] = data["category"].map(normalize_category)
+    titles = []
+    for item, brand, variant in zip(data["item_type"].astype(str), data["brand"].astype(str), data["variant"].astype(str)):
+        parts = [w for w in item.split() if rng.random() > 0.15 or len(item.split()) <= 2]
+        if brand != "Generic" and rng.random() < 0.7: parts.insert(int(rng.integers(0, len(parts) + 1)), brand)
+        if rng.random() < 0.4: parts.append(variant)
+        titles.append(" ".join(parts))
+    data[TEXT] = titles
+    data["log_original_price"] = np.log1p(data["original_price_inr"])
+    return data
 
 
 def sha256_file(path: Path) -> str:
@@ -46,27 +68,23 @@ def sha256_file(path: Path) -> str:
 
 
 def _candidate_models() -> dict:
-    models = {
-        "LinearRegression": LinearRegression(),
-        "RandomForestRegressor": RandomForestRegressor(
-            n_estimators=40, max_depth=18, min_samples_leaf=6, max_samples=0.5, random_state=42, n_jobs=1,
-        ),
-    }
+    models = {"Ridge": Ridge(alpha=1.0)}
     try:
         from xgboost import XGBRegressor
         models["XGBRegressor"] = XGBRegressor(
-            n_estimators=120, max_depth=7, learning_rate=0.06, min_child_weight=5,
-            subsample=0.9, colsample_bytree=0.9, objective="reg:squarederror",
-            eval_metric="mae", tree_method="hist", random_state=42, n_jobs=1,
+            n_estimators=350, max_depth=6, learning_rate=0.07, min_child_weight=5,
+            subsample=0.9, colsample_bytree=0.8, objective="reg:squarederror",
+            tree_method="hist", random_state=42, n_jobs=2,
         )
     except ImportError:
-        pass
+        models["RandomForestRegressor"] = RandomForestRegressor(n_estimators=60, max_depth=18, min_samples_leaf=5, random_state=42, n_jobs=1)
     return models
 
 
 def _pipeline(estimator) -> Pipeline:
     features = ColumnTransformer([
         ("categorical", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL),
+        ("title", TfidfVectorizer(lowercase=True, ngram_range=(1, 2), min_df=2, max_features=4000, sublinear_tf=True), TEXT),
         ("numeric", "passthrough", NUMERIC),
     ])
     return Pipeline([("features", features), ("regressor", estimator)])
@@ -76,28 +94,33 @@ def train_model(data_path: Path = DATA_PATH, run_id: str | None = None, candidat
     if not data_path.exists():
         raise FileNotFoundError(f"Dataset not found: {data_path}. Run python data/generate_synthetic.py first.")
     data = pd.read_csv(data_path, usecols=USECOLS, low_memory=False)
-    data = data[data["completed_sale"].eq(1)].dropna(subset=FEATURES + [TARGET]).copy()
+    data = data[data["completed_sale"].eq(1)].dropna(subset=USECOLS).copy()
+    data = build_frame(data)
     data[TARGET] = pd.to_numeric(data[TARGET], errors="coerce")
     data = data[data[TARGET].gt(0)]
     if len(data) < 1000:
         raise ValueError(f"Only {len(data)} completed sale rows found; at least 1,000 are required.")
 
     x = data[FEATURES]
-    y = data[TARGET].astype(np.float32)
+    price_target = data[TARGET].astype(np.float64)
+    # Learn the resale ratio, not the rupee amount: one model then scales from a Rs 80 notebook to a Rs 80,000 laptop.
+    y = np.log(price_target / data["original_price_inr"]).astype(np.float32)
+    inr = lambda pred, frame: np.clip(np.exp(pred) * frame["original_price_inr"].to_numpy(), 1, frame["original_price_inr"].to_numpy())
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.20, random_state=42)
     sample_count = min(candidate_rows, len(x_train))
     candidate_x = x_train.sample(n=sample_count, random_state=42)
     candidate_y = y_train.loc[candidate_x.index]
+    actual = price_target.loc[x_test.index]
 
     results: dict[str, dict] = {}
     for name, estimator in _candidate_models().items():
         candidate = _pipeline(estimator)
         candidate.fit(candidate_x, candidate_y)
-        prediction = candidate.predict(x_test)
+        prediction = inr(candidate.predict(x_test), x_test)
         results[name] = {
-            "maeInr": round(float(mean_absolute_error(y_test, prediction)), 2),
-            "rmseInr": round(float(np.sqrt(mean_squared_error(y_test, prediction))), 2),
-            "r2": round(float(r2_score(y_test, prediction)), 5),
+            "maeInr": round(float(mean_absolute_error(actual, prediction)), 2),
+            "rmseInr": round(float(np.sqrt(mean_squared_error(actual, prediction))), 2),
+            "r2": round(float(r2_score(actual, prediction)), 5),
             "candidateTrainingRows": int(sample_count),
         }
 
@@ -106,11 +129,12 @@ def train_model(data_path: Path = DATA_PATH, run_id: str | None = None, candidat
     final_pipeline = _pipeline(winner_estimator)
     final_pipeline.fit(x_train, y_train)
     # Report final refit model on the untouched test set using the same metric definitions.
-    final_prediction = final_pipeline.predict(x_test)
+    final_prediction = inr(final_pipeline.predict(x_test), x_test)
     winner_metrics = {
-        "maeInr": round(float(mean_absolute_error(y_test, final_prediction)), 2),
-        "rmseInr": round(float(np.sqrt(mean_squared_error(y_test, final_prediction))), 2),
-        "r2": round(float(r2_score(y_test, final_prediction)), 5),
+        "maeInr": round(float(mean_absolute_error(actual, final_prediction)), 2),
+        "rmseInr": round(float(np.sqrt(mean_squared_error(actual, final_prediction))), 2),
+        "r2": round(float(r2_score(actual, final_prediction)), 5),
+        "medianAbsPercentError": round(float(np.median(np.abs(final_prediction - actual) / actual) * 100), 2),
     }
 
     run_id = run_id or datetime.now(timezone.utc).strftime("synthetic-v2-%Y%m%dT%H%M%SZ")
@@ -148,7 +172,7 @@ def train_model(data_path: Path = DATA_PATH, run_id: str | None = None, candidat
         "trainedAtUtc": datetime.now(timezone.utc).isoformat(),
         "caveat": "Synthetic holdout metrics are pipeline diagnostics and do not establish real-campus pricing accuracy.",
     }
-    joblib.dump({"pipeline": final_pipeline, "modelVersion": run_id}, version_dir / "model.joblib", compress=3)
+    joblib.dump({"pipeline": final_pipeline, "modelVersion": run_id, "targetTransform": "log-ratio"}, version_dir / "model.joblib", compress=3)
     (version_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     _write_model_card(version_dir / "MODEL_CARD.md", metrics)
 

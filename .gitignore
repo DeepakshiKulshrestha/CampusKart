@@ -15,7 +15,14 @@ ml-service/price_prediction/model.joblib
 ml-service/price_prediction/metrics.json
 ml-service/data/synthetic/*.csv
 ml-service/data/synthetic/*.manifest.json
-ml-service/model_artifacts/
+ml-service/model_artifacts/*
+# Ship only the small active models (synthetic data, ~1 MB) so the Docker image is self-contained
+!ml-service/model_artifacts/price/
+ml-service/model_artifacts/price/*
+!ml-service/model_artifacts/price/current/
+!ml-service/model_artifacts/fraud/
+ml-service/model_artifacts/fraud/*
+!ml-service/model_artifacts/fraud/current/
 ml-service/.cache/
 ml-service/model_artifacts/*.zip
 
@@ -30,3 +37,7 @@ backups/
 .idea/
 .DS_Store
 Thumbs.db
+!ml-service/model_artifacts/*/current/*.joblib
+
+# Local backup copies of the model bundle (share privately, not via git)
+model-backups/

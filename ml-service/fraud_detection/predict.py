@@ -11,7 +11,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL_PATH = Path(os.getenv("FRAUD_MODEL_PATH", Path(os.getenv("MODEL_STORAGE_ROOT", ROOT / "model_artifacts")) / "fraud" / "current" / "model.joblib"))
-FEATURES = ["priceDeviation", "accountAgeInDays", "totalListings", "listingsLast7Days", "previousReports", "completedSalesCount", "rejectedListingsCount", "averagePriceDeviation"]
+FEATURES = ["priceDeviation", "totalListings", "listingsLast7Days", "previousReports", "completedSalesCount", "rejectedListingsCount", "averagePriceDeviation"]
 
 
 @lru_cache(maxsize=1)
@@ -27,7 +27,9 @@ def score_listing(payload: dict) -> dict:
     deviation = abs(float(payload["listedPrice"]) - fair) / fair
     values = {
         "priceDeviation": deviation,
-        "accountAgeInDays": float(payload["accountAgeInDays"]),
+        # Account age is deliberately NOT a feature or a risk signal: in a campus marketplace most honest
+        # sellers are new. Legacy bundles that still list it get a neutral constant.
+        "accountAgeInDays": 365.0,
         "totalListings": float(payload["totalListings"]),
         "listingsLast7Days": float(payload["listingsLast7Days"]),
         "previousReports": float(payload["previousReports"]),
@@ -35,13 +37,13 @@ def score_listing(payload: dict) -> dict:
         "rejectedListingsCount": float(payload["rejectedListingsCount"]),
         "averagePriceDeviation": float(payload["averagePriceDeviation"]),
     }
-    row = np.asarray([[values[name] for name in FEATURES]], dtype=float)
+    model_features = artifact.get("features", FEATURES)
+    row = np.asarray([[values[name] for name in model_features]], dtype=float)
     model_input = artifact["scaler"].transform(np.log1p(np.clip(row, 0, None)))
     raw = float(artifact["model"].decision_function(model_input)[0])
     anomaly_score = float(np.clip(50 - raw * 160, 0, 100))
     reasons = []
     if deviation >= 0.60: reasons.append({"feature": "priceDeviation", "value": round(deviation * 100, 1), "reason": "Listed price differs from estimated fair price by at least 60%"})
-    if values["accountAgeInDays"] < 7: reasons.append({"feature": "accountAgeInDays", "value": values["accountAgeInDays"], "reason": "Seller account is less than 7 days old"})
     if values["listingsLast7Days"] >= 10: reasons.append({"feature": "listingsLast7Days", "value": values["listingsLast7Days"], "reason": "Unusually high listing volume in the last 7 days"})
     if values["previousReports"] >= 2: reasons.append({"feature": "previousReports", "value": values["previousReports"], "reason": "Seller has multiple previous reports"})
     if values["rejectedListingsCount"] >= 2: reasons.append({"feature": "rejectedListingsCount", "value": values["rejectedListingsCount"], "reason": "Seller has multiple rejected listings"})
