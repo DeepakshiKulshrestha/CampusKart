@@ -5,6 +5,7 @@ import User from '../models/User.model.js';
 import Product from '../models/Product.model.js';
 import { DEFAULT_COMMISSION_RATE } from '../models/Transaction.model.js';
 import * as analytics from '../services/analytics.service.js';
+import { callMl } from '../services/mlClient.js';
 import {
   commissionSchema,
   adminTransactionQuerySchema,
@@ -104,6 +105,8 @@ const REPORTS = {
   'sales-over-time': (q) => analytics.getSalesOverTime(q),
   'transactions-by-status': async (q) => ({ items: await analytics.getTransactionsByStatus(q) }),
   'top-categories': async (q) => ({ items: await analytics.getTopCategories(q) }),
+  // Price-model accuracy on real sales, AI flags and search analytics (blueprint Module 10)
+  ai: async (q) => ({ ai: await analytics.getAiAnalytics(q) }),
 };
 
 function analyticsHandler(report) {
@@ -219,7 +222,18 @@ async function removeProduct(req, res, next) {
   }
 }
 
+// GET /api/admin/model-metrics — the price model's validation metrics, straight from the ML service
+async function getModelMetrics(req, res, next) {
+  try {
+    return res.json({ success: true, metrics: await callMl('/model-metrics') });
+  } catch (err) {
+    if (err.status === 503 || err.status === 502) return res.status(err.status).json({ success: false, message: err.message });
+    next(err);
+  }
+}
+
 export {
+  getModelMetrics,
   sendRangeError,
   getCommission,
   updateCommission,

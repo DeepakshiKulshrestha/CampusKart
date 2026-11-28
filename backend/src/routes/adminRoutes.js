@@ -5,6 +5,7 @@ import {
   getAdminTransactions,
   getDashboard,
   analyticsHandler,
+  getModelMetrics,
   listUsers,
   restrictUser,
   listProducts,
@@ -24,6 +25,8 @@ router.get('/analytics/summary', analyticsHandler('summary'));
 router.get('/analytics/sales-over-time', analyticsHandler('sales-over-time'));
 router.get('/analytics/transactions-by-status', analyticsHandler('transactions-by-status'));
 router.get('/analytics/top-categories', analyticsHandler('top-categories'));
+router.get('/analytics/ai', analyticsHandler('ai'));
+router.get('/model-metrics', getModelMetrics);
 
 router.get('/commission', getCommission);
 router.put('/commission', updateCommission);
