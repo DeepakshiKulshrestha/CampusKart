@@ -178,8 +178,49 @@ const reviewReportSchema = z.object({
   removeListing: z.boolean().optional().default(false),
 });
 
+// ---- AI ----
+const pricePredictionSchema = z.object({
+  category: z.enum(CATEGORIES),
+  brand: z.preprocess(blankToUndefined, z.string().trim().max(50, 'Brand must be at most 50 characters').optional()),
+  // The price model needs a real starting price, so 0 is not allowed here (it is allowed on listings)
+  originalPrice: num('Original price', (s) => s.gt(0, 'Original price must be greater than 0').max(10_000_000)),
+  age: num('Age', (s) => s.int('Age must be a whole number of months').min(0).max(240, 'Age cannot exceed 240 months')),
+  condition: z.enum(CONDITIONS),
+  location: z.preprocess(blankToUndefined, z.string().trim().max(120).optional()),
+});
+
+const productIdBodySchema = z.object({ productId: objectId('productId') });
+
+const semanticSearchSchema = z
+  .object({
+    query: z.string('query is required').trim().min(2, 'query must be at least 2 characters').max(500, 'query must be at most 500 characters'),
+    category: optionalEnum(CATEGORIES),
+    condition: optionalEnum(CONDITIONS),
+    location: z.preprocess(blankToUndefined, z.string().trim().min(1).max(120).optional()),
+    minPrice: num('minPrice', (s) => s.min(0, 'minPrice cannot be negative').optional()),
+    maxPrice: num('maxPrice', (s) => s.min(0, 'maxPrice cannot be negative').optional()),
+    limit: num('limit', (s) => s.int().min(1, 'limit must be at least 1').max(50, 'limit cannot exceed 50').default(20)),
+  })
+  .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    message: 'minPrice cannot be greater than maxPrice',
+    path: ['minPrice'],
+  });
+
+const aiFlagQuerySchema = z.object({ ...pageFields, adminDecision: optionalEnum(['PENDING', 'CONFIRMED', 'DISMISSED']) });
+
+const reviewAiFlagSchema = z.object({
+  adminDecision: z.enum(['CONFIRMED', 'DISMISSED']),
+  adminNote: z.preprocess(blankToUndefined, z.string().trim().max(1000, 'adminNote must be at most 1000 characters').optional()),
+  removeListing: z.boolean().optional().default(false),
+});
+
 export {
   validationError,
+  pricePredictionSchema,
+  productIdBodySchema,
+  semanticSearchSchema,
+  aiFlagQuerySchema,
+  reviewAiFlagSchema,
   registerSchema,
   loginSchema,
   updateMeSchema,

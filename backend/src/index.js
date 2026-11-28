@@ -9,6 +9,7 @@ import interestRouter from "./routes/interestRoutes.js";
 import transactionRouter from "./routes/transactionRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import reportRouter from "./routes/reportRoutes.js";
+import aiRouter from "./routes/aiRoutes.js";
 import { apiLimiter, authLimiter } from "./middleware/rateLimiter.js";
 
 const app = express();
@@ -46,6 +47,7 @@ app.use("/api/interests", interestRouter);
 app.use("/api/transactions", transactionRouter);
 app.use("/api/reports", reportRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/ai", aiRouter);
 
 // Unknown API route: JSON instead of Express's default HTML page
 app.use("/api", (req, res) => {
