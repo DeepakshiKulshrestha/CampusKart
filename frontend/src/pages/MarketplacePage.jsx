@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import { productApi, getErrorMessage } from '../services/api';
+import { SlidersHorizontal, X, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { productApi, aiApi, getErrorMessage } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import SearchBar from '../components/SearchBar';
 import FilterPanel from '../components/FilterPanel';
@@ -12,7 +12,8 @@ import Button from '../components/Button';
 import Modal from '../components/Modal';
 
 const PAGE_SIZE = 12;
-const FILTER_KEYS = ['q', 'category', 'condition', 'location', 'minPrice', 'maxPrice', 'sort', 'page'];
+const FILTER_KEYS = ['q', 'category', 'condition', 'location', 'minPrice', 'maxPrice', 'sort', 'page', 'smart'];
+const SMART_LIMIT = 48;
 
 export default function MarketplacePage() {
   // The URL is the single source of truth for filters, so filtered views can be shared as links
@@ -21,11 +22,15 @@ export default function MarketplacePage() {
   const category = filters.category || 'all';
   const sortBy = filters.sort || 'newest';
   const page = Math.max(1, Number(filters.page) || 1);
+  // Smart search (AI) only runs when the toggle is on and there is a query of at least 2 characters
+  const smartOn = filters.smart === '1';
+  const useSmart = smartOn && filters.q.trim().length >= 2;
 
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [smartInfo, setSmartInfo] = useState(null); // { engine } or { fallback: message }
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Text inputs are typed locally and pushed to the URL after a 400 ms pause (debounce)
@@ -74,6 +79,28 @@ export default function MarketplacePage() {
   const loadProducts = useCallback(async () => {
     setIsLoading(true);
     setError('');
+    setSmartInfo(null);
+    const params = {
+      category,
+      condition: filters.condition,
+      location: filters.location,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+    };
+    if (useSmart) {
+      try {
+        // Results come back ranked by meaning; there is no sorting or paging in this mode
+        const data = await aiApi.semanticSearch({ query: filters.q.trim(), ...params, limit: SMART_LIMIT });
+        setProducts(data.results);
+        setPagination({ page: 1, total: data.results.length, totalPages: 1 });
+        setSmartInfo({ engine: data.engine });
+        setIsLoading(false);
+        return;
+      } catch (err) {
+        // Fall back to the normal keyword search below and say so
+        setSmartInfo({ fallback: `Smart search is unavailable (${getErrorMessage(err)}). Showing regular search results.` });
+      }
+    }
     try {
       const data = await productApi.getProducts({
         search: filters.q,
@@ -165,14 +192,26 @@ export default function MarketplacePage() {
             </p>
           </div>
 
-          <div className="w-full sm:w-80 lg:w-96">
+          <div className="w-full sm:w-80 lg:w-[28rem] space-y-2">
             <SearchBar
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onSubmit={() => updateParams({ q: searchInput.trim() })}
-              placeholder="Search title, brand or description..."
+              placeholder={smartOn ? 'Describe what you need, e.g. "calculator for engineering maths"' : 'Search title, brand or description...'}
               size="md"
             />
+            <label className="flex cursor-pointer items-center justify-end gap-2 text-xs font-heading font-bold text-[#111111]">
+              <Sparkles className={`h-3.5 w-3.5 ${smartOn ? 'text-[#0638C9]' : 'text-[#62666F]'}`} />
+              <span>Smart search (AI)</span>
+              <input
+                type="checkbox"
+                role="switch"
+                aria-label="Smart search"
+                checked={smartOn}
+                onChange={(e) => updateParams({ smart: e.target.checked ? '1' : '' })}
+                className="h-4 w-4 accent-[#0638C9]"
+              />
+            </label>
           </div>
         </div>
 
@@ -215,6 +254,19 @@ export default function MarketplacePage() {
               </div>
             )}
 
+            {smartInfo?.engine && (
+              <p role="status" className="mb-4 flex items-center gap-1.5 text-xs text-[#62666F]">
+                <Sparkles className="h-3.5 w-3.5 text-[#0638C9]" />
+                Smart search: results ranked by relevance to your description
+                <span className="rounded-full bg-[#0638C9]/10 px-2 py-0.5 font-mono text-[10px] text-[#0638C9]">{smartInfo.engine}</span>
+              </p>
+            )}
+            {smartInfo?.fallback && (
+              <p role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">{smartInfo.fallback}</p>
+            )}
+            {smartOn && !useSmart && (
+              <p className="mb-4 text-xs text-[#62666F]">Smart search is on: type what you're looking for in the search box.</p>
+            )}
             {isLoading ? (
               <div className="py-24">
                 <LoadingSpinner size="lg" label="Loading marketplace listings..." />

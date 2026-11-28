@@ -166,6 +166,23 @@ export const adminApi = {
   setRestricted: async (id, isRestricted) => (await api.put(`/admin/users/${id}/restrict`, { isRestricted })).data,
   getProducts: async (params = {}) => (await api.get('/admin/products', { params: cleanParams(params) })).data,
   removeProduct: async (id, reason) => (await api.put(`/admin/products/${id}/remove`, { reason })).data,
+  getAiFlags: async (params = {}) => (await api.get('/admin/ai-flags', { params: cleanParams(params) })).data,
+  reviewAiFlag: async (id, payload) => (await api.put(`/admin/ai-flags/${id}/review`, payload)).data,
+  getModelMetrics: async () => (await api.get('/admin/model-metrics')).data,
+  rescoreListing: async (productId) => (await api.post('/ai/suspicion-score', { productId })).data,
+};
+
+// ---------- AI (the backend calls the ML service; 503 = AI temporarily unavailable) ----------
+export const aiApi = {
+  // { category, brand?, originalPrice, age, condition } → { predictedPrice, fairPriceRange, modelVersion, dataNote }
+  predictPrice: async (features) => (await api.post('/ai/price-prediction', features)).data,
+  // → { label: GOOD DEAL | FAIR | SLIGHTLY HIGH | OVERPRICED, deviationPercent, fairPriceRange, predictedPrice }
+  priceFairness: async (productId) => (await api.post('/ai/price-fairness', { productId })).data,
+  // → { engine, results } in rank order
+  semanticSearch: async (params) => {
+    const data = (await api.post('/ai/semantic-search', cleanParams(params))).data;
+    return { ...data, results: (data.results || []).map(normalizeProduct) };
+  },
 };
 
 // ---------- Local-only features (no backend for these yet) ----------

@@ -69,6 +69,8 @@ DYLD_FALLBACK_LIBRARY_PATH="$PWD/.venv/lib/python3.14/site-packages/sklearn/.dyl
   .venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
+> **Don't start it through `nohup`, `env` or `sudo`.** macOS strips `DYLD_*` variables when launching protected system programs, so XGBoost loses `libomp` again: `/health` still answers but `/predict-price` fails with HTTP 500 (`Library not loaded: @rpath/libomp.dylib` in the log). Run it in its own terminal tab as above, or use `brew install libomp` and skip the variable entirely.
+
 No `ml-service/.env` is needed for local development (defaults: development mode, models under `./model_artifacts`, no API key). Interactive docs: http://localhost:8000/docs
 
 ## 4. Check it

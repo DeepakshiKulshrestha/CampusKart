@@ -27,6 +27,7 @@ import Modal from '../components/Modal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProductCard from '../components/ProductCard';
 import ErrorMessage from '../components/ErrorMessage';
+import PriceFairnessLabel from '../components/PriceFairnessLabel';
 
 const inr = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
@@ -326,6 +327,11 @@ export default function ProductDetailsPage() {
                     </span>
                   )}
                 </div>
+                {isAvailable && (
+                  <div className="mt-3">
+                    <PriceFairnessLabel productId={product.id} />
+                  </div>
+                )}
               </div>
 
               <dl className="grid grid-cols-2 gap-3 text-xs">

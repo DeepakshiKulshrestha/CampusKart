@@ -8,6 +8,7 @@ import Button from '../components/Button';
 import ErrorMessage from '../components/ErrorMessage';
 import Modal from '../components/Modal';
 import ImageUploadDropzone from '../components/ImageUploadDropzone';
+import PriceSuggestion from '../components/PriceSuggestion';
 
 const selectClass =
   'w-full rounded-2xl border bg-white px-3.5 py-2.5 text-sm text-[#111111] focus:border-[#0638C9] focus:outline-none focus:ring-2 focus:ring-[#0638C9]/20';
@@ -101,6 +102,14 @@ export default function CreateListingPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           <ListingFields form={form} set={set} errors={fieldErrors} />
+
+          <PriceSuggestion
+            form={form}
+            onUsePrice={(price) => {
+              setForm((f) => ({ ...f, price }));
+              setFieldErrors((errs) => ({ ...errs, price: undefined }));
+            }}
+          />
 
           <div className="rounded-4xl border border-[#E8E8E8] bg-white p-6 sm:p-8 shadow-card space-y-4">
             <div className="flex items-center justify-between">
