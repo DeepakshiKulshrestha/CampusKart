@@ -1,75 +1,1917 @@
 {
-  "catalogVersion": "campuskart-student-essentials-v2",
-  "currency": "INR",
-  "items": [
-    {"itemType":"Lab coat","category":"Lab & Safety","brands":["Generic","Campus","Manpro"],"variants":["XS","S","M","L","XL","XXL","XXXL"],"packQuantities":[1],"priceRangeInr":[450,1400],"kind":"reusable","decayMonths":60,"weight":5},
-    {"itemType":"Manpro coat","category":"Lab & Safety","brands":["Manpro","Campus"],"variants":["XS","S","M","L","XL","XXL","XXXL"],"packQuantities":[1],"priceRangeInr":[600,1800],"kind":"reusable","decayMonths":60,"weight":2},
-    {"itemType":"Lab apron","category":"Lab & Safety","brands":["Generic","Campus","Manpro"],"variants":["S","M","L","XL"],"packQuantities":[1],"priceRangeInr":[250,800],"kind":"reusable","decayMonths":48,"weight":2},
-    {"itemType":"Safety goggles","category":"Lab & Safety","brands":["Generic","3M","Campus"],"variants":["Adult","Adjustable"],"packQuantities":[1],"priceRangeInr":[120,900],"kind":"reusable","decayMonths":72,"weight":1.5},
-    {"itemType":"Lab gloves","category":"Lab & Safety","brands":["Generic","3M"],"variants":["S","M","L","XL"],"packQuantities":[1,10,50],"priceRangeInr":[8,30],"kind":"consumable","resaleFactor":0.82,"weight":2},
-    {"itemType":"Scientific calculator","category":"Electronics","brands":["Casio","Citizen","Texas Instruments","Generic"],"variants":["Basic scientific","Programmable","Graphing"],"packQuantities":[1],"priceRangeInr":[600,18000],"kind":"reusable","decayMonths":72,"weight":2.5},
-
-    {"itemType":"Ballpoint pen","category":"Stationery","brands":["Cello","Reynolds","Flair","Generic"],"variants":["Blue","Black","Red"],"packQuantities":[1,5,10],"priceRangeInr":[5,25],"kind":"consumable","resaleFactor":0.82,"weight":8},
-    {"itemType":"Gel pen","category":"Stationery","brands":["Pilot","Pentel","Cello","Generic"],"variants":["Blue","Black","Red"],"packQuantities":[1,3,5,10],"priceRangeInr":[10,65],"kind":"consumable","resaleFactor":0.83,"weight":5},
-    {"itemType":"Pencil","category":"Stationery","brands":["Apsara","Nataraj","Faber-Castell","Generic"],"variants":["HB","2B","Mechanical"],"packQuantities":[1,5,10],"priceRangeInr":[4,45],"kind":"consumable","resaleFactor":0.82,"weight":4},
-    {"itemType":"Highlighter","category":"Stationery","brands":["Camlin","Faber-Castell","Generic"],"variants":["Yellow","Pastel set","Assorted set"],"packQuantities":[1,3,5],"priceRangeInr":[20,180],"kind":"consumable","resaleFactor":0.82,"weight":2},
-    {"itemType":"Permanent marker","category":"Stationery","brands":["Camlin","Sharpie","Generic"],"variants":["Fine tip","Broad tip","Assorted set"],"packQuantities":[1,2,4],"priceRangeInr":[20,160],"kind":"consumable","resaleFactor":0.82,"weight":1.5},
-    {"itemType":"Notebook","category":"Stationery","brands":["Classmate","Navneet","Paperkraft","Generic"],"variants":["A4 100 pages","A4 200 pages","A5 100 pages","A5 200 pages","Ruled","Unruled"],"packQuantities":[1,2,5],"priceRangeInr":[35,180],"kind":"consumable","resaleFactor":0.84,"weight":7},
-    {"itemType":"Register","category":"Stationery","brands":["Classmate","Navneet","Generic"],"variants":["Long 200 pages","Long 300 pages","A4 200 pages"],"packQuantities":[1,2],"priceRangeInr":[80,260],"kind":"consumable","resaleFactor":0.84,"weight":3},
-    {"itemType":"Graph notebook","category":"Stationery","brands":["Classmate","Navneet","Generic"],"variants":["A4 100 pages","A4 200 pages"],"packQuantities":[1,2],"priceRangeInr":[45,150],"kind":"consumable","resaleFactor":0.84,"weight":2},
-    {"itemType":"Loose sheets","category":"Stationery","brands":["Classmate","Generic"],"variants":["A4 ruled","A4 unruled","A3 drawing"],"packQuantities":[25,50,100],"priceRangeInr":[1,3],"kind":"consumable","resaleFactor":0.84,"weight":2},
-    {"itemType":"Sticky notes","category":"Stationery","brands":["Post-it","Generic"],"variants":["Small","Medium","Large","Assorted colors"],"packQuantities":[1,3],"priceRangeInr":[35,180],"kind":"consumable","resaleFactor":0.84,"weight":1.5},
-    {"itemType":"File folder","category":"Stationery","brands":["Solo","Generic"],"variants":["A4 plastic","A4 cardboard","Expanding file"],"packQuantities":[1,5,10],"priceRangeInr":[12,220],"kind":"consumable","resaleFactor":0.84,"weight":2},
-    {"itemType":"Clipboard","category":"Stationery","brands":["Solo","Generic"],"variants":["A4","A3"],"packQuantities":[1],"priceRangeInr":[60,250],"kind":"reusable","decayMonths":96,"weight":1},
-    {"itemType":"Stapler and staples","category":"Stationery","brands":["Kangaro","Generic"],"variants":["Mini","Standard","Heavy duty"],"packQuantities":[1],"priceRangeInr":[80,650],"kind":"reusable","decayMonths":96,"weight":1},
-    {"itemType":"Geometry box","category":"Stationery","brands":["Camlin","Faber-Castell","Generic"],"variants":["Student","Metal compass set"],"packQuantities":[1],"priceRangeInr":[90,650],"kind":"reusable","decayMonths":84,"weight":1.5},
-    {"itemType":"Ruler","category":"Stationery","brands":["Camlin","Generic"],"variants":["15 cm","30 cm","Flexible 30 cm"],"packQuantities":[1,2,5],"priceRangeInr":[8,80],"kind":"consumable","resaleFactor":0.84,"weight":1.5},
-    {"itemType":"Eraser and sharpener","category":"Stationery","brands":["Apsara","Nataraj","Generic"],"variants":["Combo","Eraser pack","Sharpener pack"],"packQuantities":[1,2,5],"priceRangeInr":[5,70],"kind":"consumable","resaleFactor":0.84,"weight":1.5},
-
-    {"itemType":"Engineering textbook","category":"Books","brands":["Pearson","McGraw Hill","Wiley","Local edition"],"variants":["Paperback","Hardcover","Latest edition","Previous edition"],"packQuantities":[1],"priceRangeInr":[250,3500],"kind":"reusable","decayMonths":96,"weight":2.5},
-    {"itemType":"Medical textbook","category":"Books","brands":["Elsevier","Wolters Kluwer","CBS Publishers"],"variants":["Paperback","Hardcover","Latest edition","Previous edition"],"packQuantities":[1],"priceRangeInr":[400,6500],"kind":"reusable","decayMonths":96,"weight":1.5},
-    {"itemType":"Management textbook","category":"Books","brands":["Pearson","McGraw Hill","Sage"],"variants":["Paperback","Hardcover","Latest edition","Previous edition"],"packQuantities":[1],"priceRangeInr":[250,3500],"kind":"reusable","decayMonths":96,"weight":1.5},
-    {"itemType":"Lab manual and practical record","category":"Books","brands":["Campus print shop","Generic"],"variants":["Engineering","Science","Medical","A4 record book"],"packQuantities":[1,2],"priceRangeInr":[60,700],"kind":"consumable","resaleFactor":0.84,"weight":2},
-    {"itemType":"Competitive exam guide","category":"Books","brands":["Arihant","Disha","Pearson","Generic"],"variants":["Paperback","Previous edition","Practice workbook"],"packQuantities":[1],"priceRangeInr":[100,1600],"kind":"reusable","decayMonths":72,"weight":1.5},
-
-    {"itemType":"Shampoo","category":"Personal Care","brands":["Dove","Clinic Plus","Head & Shoulders","Sunsilk","Generic"],"variants":["100 ml","180 ml","340 ml","650 ml"],"packQuantities":[1,2],"priceRangeInr":[70,420],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.82,"weight":2.5},
-    {"itemType":"Conditioner","category":"Personal Care","brands":["Dove","Tresemme","Pantene","Sunsilk","Generic"],"variants":["100 ml","180 ml","340 ml"],"packQuantities":[1,2],"priceRangeInr":[90,480],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.82,"weight":2},
-    {"itemType":"Soap","category":"Personal Care","brands":["Dove","Lux","Lifebuoy","Medimix","Generic"],"variants":["75 g","100 g","125 g"],"packQuantities":[1,3,4],"priceRangeInr":[25,90],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.82,"weight":2},
-    {"itemType":"Toothpaste","category":"Personal Care","brands":["Colgate","Pepsodent","Sensodyne","Closeup"],"variants":["50 g","100 g","150 g"],"packQuantities":[1,2],"priceRangeInr":[35,180],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.82,"weight":1.5},
-    {"itemType":"Toothbrush","category":"Personal Care","brands":["Oral-B","Colgate","Sensodyne","Generic"],"variants":["Soft","Medium","Hard","Travel"],"packQuantities":[1,2,4],"priceRangeInr":[20,160],"kind":"consumable","resaleFactor":0.82,"weight":1.5},
-    {"itemType":"Face wash","category":"Personal Care","brands":["Himalaya","Nivea","Garnier","Cetaphil"],"variants":["50 ml","100 ml","150 ml"],"packQuantities":[1],"priceRangeInr":[70,380],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.80,"weight":1.5},
-    {"itemType":"Sunscreen","category":"Personal Care","brands":["Neutrogena","Nivea","Minimalist","Lakme"],"variants":["50 ml","100 ml","SPF 30","SPF 50"],"packQuantities":[1],"priceRangeInr":[160,900],"kind":"perishable","shelfLifeDays":[365,900],"resaleFactor":0.78,"weight":1.25},
-    {"itemType":"Sanitary pads","category":"Personal Care","brands":["Whisper","Stayfree","Sofy","Generic"],"variants":["Regular","XL","Overnight"],"packQuantities":[6,15,30],"priceRangeInr":[4,12],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.84,"weight":1.25},
-    {"itemType":"Deodorant","category":"Personal Care","brands":["Nivea","Fogg","Denver","Engage"],"variants":["50 ml","100 ml","150 ml"],"packQuantities":[1],"priceRangeInr":[100,480],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.78,"weight":1.25},
-    {"itemType":"Handwash","category":"Personal Care","brands":["Dettol","Lifebuoy","Savlon","Generic"],"variants":["200 ml","500 ml","Refill pack"],"packQuantities":[1,2],"priceRangeInr":[45,240],"kind":"perishable","shelfLifeDays":[540,1095],"resaleFactor":0.82,"weight":1},
-
-    {"itemType":"Potato chips","category":"Snacks & Food","brands":["Lay's","Bingo","Kurkure","Haldiram's"],"variants":["25 g","52 g","90 g","Party pack"],"packQuantities":[1,3,6],"priceRangeInr":[10,65],"kind":"perishable","shelfLifeDays":[90,270],"resaleFactor":0.86,"weight":4},
-    {"itemType":"Chocolate bar","category":"Snacks & Food","brands":["Cadbury","Nestle","Amul","Hershey's"],"variants":["12 g","24 g","40 g","Family bar"],"packQuantities":[1,3,5],"priceRangeInr":[10,180],"kind":"perishable","shelfLifeDays":[120,365],"resaleFactor":0.88,"weight":3},
-    {"itemType":"Biscuits","category":"Snacks & Food","brands":["Parle","Britannia","Sunfeast","Unibic"],"variants":["Small pack","Family pack","Cream biscuits","Cookies"],"packQuantities":[1,3,6],"priceRangeInr":[10,100],"kind":"perishable","shelfLifeDays":[120,365],"resaleFactor":0.86,"weight":3},
-    {"itemType":"Instant noodles","category":"Snacks & Food","brands":["Maggi","Yippee","Top Ramen"],"variants":["Single pack","Cup noodles","Masala","Atta noodles"],"packQuantities":[1,4,6],"priceRangeInr":[15,70],"kind":"perishable","shelfLifeDays":[120,365],"resaleFactor":0.86,"weight":2.5},
-    {"itemType":"Popcorn","category":"Snacks & Food","brands":["Act II","PVR","Generic"],"variants":["Ready to eat","Microwave pack","Caramel"],"packQuantities":[1,3],"priceRangeInr":[20,120],"kind":"perishable","shelfLifeDays":[120,365],"resaleFactor":0.86,"weight":1.25},
-    {"itemType":"Juice and packaged drink","category":"Snacks & Food","brands":["Real","Tropicana","Paper Boat","Amul"],"variants":["200 ml","500 ml","1 L"],"packQuantities":[1,2,6],"priceRangeInr":[20,120],"kind":"perishable","shelfLifeDays":[90,365],"resaleFactor":0.84,"weight":1.5},
-    {"itemType":"Tea and instant coffee","category":"Snacks & Food","brands":["Nescafe","Bru","Tata Tea","Generic"],"variants":["Single serve","100 g","200 g","Sachets"],"packQuantities":[1,5,10],"priceRangeInr":[5,320],"kind":"perishable","shelfLifeDays":[180,730],"resaleFactor":0.84,"weight":1.5},
-
-    {"itemType":"Laptop","category":"Electronics","brands":["HP","Dell","Lenovo","Asus","Acer","Apple"],"variants":["8 GB RAM / 256 GB SSD","8 GB RAM / 512 GB SSD","16 GB RAM / 512 GB SSD","16 GB RAM / 1 TB SSD"],"packQuantities":[1],"priceRangeInr":[25000,180000],"kind":"reusable","decayMonths":48,"weight":3},
-    {"itemType":"Laptop charger","category":"Electronics","brands":["HP","Dell","Lenovo","Asus","Acer","Generic"],"variants":["45 W","65 W","90 W","USB-C"],"packQuantities":[1],"priceRangeInr":[700,4500],"kind":"reusable","decayMonths":72,"weight":1.5},
-    {"itemType":"Wired mouse","category":"Electronics","brands":["Logitech","HP","Dell","Lenovo","Generic"],"variants":["Basic","Ergonomic","Gaming"],"packQuantities":[1],"priceRangeInr":[250,3500],"kind":"reusable","decayMonths":60,"weight":1.5},
-    {"itemType":"Earphones and earbuds","category":"Electronics","brands":["boAt","JBL","Realme","OnePlus","Sony"],"variants":["Wired","Wireless","In-ear","Over-ear"],"packQuantities":[1],"priceRangeInr":[250,9000],"kind":"reusable","decayMonths":48,"weight":1.5},
-    {"itemType":"Power bank","category":"Electronics","brands":["Mi","Ambrane","boAt","Anker"],"variants":["10000 mAh","20000 mAh","Fast charge"],"packQuantities":[1],"priceRangeInr":[700,4500],"kind":"reusable","decayMonths":48,"weight":1.25},
-    {"itemType":"USB drive","category":"Electronics","brands":["SanDisk","Kingston","HP","Generic"],"variants":["32 GB","64 GB","128 GB"],"packQuantities":[1],"priceRangeInr":[250,1600],"kind":"reusable","decayMonths":96,"weight":1.25},
-
-    {"itemType":"Bicycle","category":"Cycles & Transport","brands":["Hero","Hercules","Firefox","Btwin","Generic"],"variants":["24 inch wheel","26 inch wheel","27.5 inch wheel","29 inch wheel"],"packQuantities":[1],"priceRangeInr":[4500,35000],"kind":"reusable","decayMonths":72,"weight":1.5},
-    {"itemType":"Bicycle helmet","category":"Cycles & Transport","brands":["Decathlon","Hero","Generic"],"variants":["S","M","L","XL"],"packQuantities":[1],"priceRangeInr":[500,3500],"kind":"reusable","decayMonths":60,"weight":0.75},
-    {"itemType":"Bicycle lock and lights","category":"Cycles & Transport","brands":["Decathlon","Generic"],"variants":["Cable lock","U-lock","Front and rear lights"],"packQuantities":[1],"priceRangeInr":[250,2200],"kind":"reusable","decayMonths":72,"weight":0.75},
-
-    {"itemType":"Backpack","category":"Daily Essentials","brands":["Skybags","American Tourister","Wildcraft","Generic"],"variants":["20 L","30 L","40 L","Laptop backpack 15.6 inch"],"packQuantities":[1],"priceRangeInr":[600,6500],"kind":"reusable","decayMonths":60,"weight":2},
-    {"itemType":"Water bottle","category":"Daily Essentials","brands":["Milton","Cello","Borosil","Generic"],"variants":["500 ml","750 ml","1 L","Insulated 1 L"],"packQuantities":[1],"priceRangeInr":[120,1800],"kind":"reusable","decayMonths":72,"weight":1.5},
-    {"itemType":"Lunch box","category":"Daily Essentials","brands":["Milton","Cello","Signoraware","Generic"],"variants":["Single tier","Two tier","Three compartment"],"packQuantities":[1],"priceRangeInr":[180,1800],"kind":"reusable","decayMonths":72,"weight":1.25},
-    {"itemType":"Umbrella","category":"Daily Essentials","brands":["Generic","Decathlon","Citizen"],"variants":["Compact","Full size","Auto open"],"packQuantities":[1],"priceRangeInr":[180,1600],"kind":"reusable","decayMonths":48,"weight":1.25},
-    {"itemType":"Bedsheet","category":"Daily Essentials","brands":["D'Decor","Spaces","Generic"],"variants":["Single","Double","Hostel single"],"packQuantities":[1,2],"priceRangeInr":[300,2400],"kind":"reusable","decayMonths":72,"weight":1.25},
-    {"itemType":"Towel","category":"Daily Essentials","brands":["Bombay Dyeing","Spaces","Generic"],"variants":["Hand towel","Bath towel","Large bath sheet"],"packQuantities":[1,2],"priceRangeInr":[100,1100],"kind":"reusable","decayMonths":60,"weight":1},
-    {"itemType":"Desk lamp","category":"Daily Essentials","brands":["Philips","Wipro","Generic"],"variants":["LED USB","Rechargeable","Clamp lamp"],"packQuantities":[1],"priceRangeInr":[350,2500],"kind":"reusable","decayMonths":72,"weight":0.75},
-    {"itemType":"Extension board","category":"Daily Essentials","brands":["GM Modular","Anchor","Generic"],"variants":["3 socket","4 socket","6 socket with surge guard"],"packQuantities":[1],"priceRangeInr":[250,2200],"kind":"reusable","decayMonths":72,"weight":0.75},
-    {"itemType":"Mug and basic kitchenware","category":"Daily Essentials","brands":["Milton","Cello","Generic"],"variants":["Ceramic mug","Steel mug","Small plate and bowl set"],"packQuantities":[1,2],"priceRangeInr":[80,900],"kind":"reusable","decayMonths":96,"weight":1}
-  ]
+ "catalogVersion": "campuskart-marketplace-v3",
+ "currency": "INR",
+ "items": [
+  {
+   "itemType": "Engineering Mathematics textbook",
+   "category": "Books",
+   "brands": [
+    "Generic",
+    "Wiley",
+    "Pearson",
+    "Khanna"
+   ],
+   "variants": [
+    "Vol 1",
+    "Vol 2",
+    "Complete"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    350,
+    900
+   ],
+   "kind": "reusable",
+   "decayMonths": 120,
+   "resaleFactor": 0.6,
+   "weight": 7
+  },
+  {
+   "itemType": "Physics textbook HC Verma",
+   "category": "Books",
+   "brands": [
+    "Bharati Bhawan",
+    "Generic"
+   ],
+   "variants": [
+    "Part 1",
+    "Part 2"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    350,
+    700
+   ],
+   "kind": "reusable",
+   "decayMonths": 120,
+   "resaleFactor": 0.62,
+   "weight": 4
+  },
+  {
+   "itemType": "Programming textbook C C++ Java Python",
+   "category": "Books",
+   "brands": [
+    "Generic",
+    "Pearson",
+    "McGraw Hill",
+    "Oxford"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    300,
+    900
+   ],
+   "kind": "reusable",
+   "decayMonths": 90,
+   "resaleFactor": 0.58,
+   "weight": 6
+  },
+  {
+   "itemType": "GATE JEE competitive exam guide",
+   "category": "Books",
+   "brands": [
+    "Arihant",
+    "MTG",
+    "Made Easy",
+    "Generic"
+   ],
+   "variants": [
+    "Latest edition"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    400,
+    1500
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.45,
+   "weight": 5
+  },
+  {
+   "itemType": "Previous year question papers",
+   "category": "Books",
+   "brands": [
+    "Generic"
+   ],
+   "variants": [
+    "Set"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    100,
+    350
+   ],
+   "kind": "reusable",
+   "decayMonths": 24,
+   "resaleFactor": 0.4,
+   "weight": 3
+  },
+  {
+   "itemType": "Novel fiction paperback",
+   "category": "Books",
+   "brands": [
+    "Penguin",
+    "HarperCollins",
+    "Generic"
+   ],
+   "variants": [
+    "Paperback"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    150,
+    500
+   ],
+   "kind": "reusable",
+   "decayMonths": 120,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Engineering Drawing book",
+   "category": "Books",
+   "brands": [
+    "Generic",
+    "NS Bhatt"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    250,
+    600
+   ],
+   "kind": "reusable",
+   "decayMonths": 120,
+   "resaleFactor": 0.55,
+   "weight": 3
+  },
+  {
+   "itemType": "Circuit theory electronics textbook",
+   "category": "Books",
+   "brands": [
+    "Generic",
+    "Pearson",
+    "Tata McGraw Hill"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    400,
+    1100
+   ],
+   "kind": "reusable",
+   "decayMonths": 100,
+   "resaleFactor": 0.58,
+   "weight": 4
+  },
+  {
+   "itemType": "Scientific calculator",
+   "category": "Electronics",
+   "brands": [
+    "Casio",
+    "Generic"
+   ],
+   "variants": [
+    "fx-991EX",
+    "fx-82MS",
+    "fx-991MS"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    700,
+    1700
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.72,
+   "weight": 8
+  },
+  {
+   "itemType": "Laptop",
+   "category": "Electronics",
+   "brands": [
+    "Dell",
+    "HP",
+    "Lenovo",
+    "Asus",
+    "Apple",
+    "Acer"
+   ],
+   "variants": [
+    "8GB 256GB",
+    "16GB 512GB",
+    "8GB 512GB"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    28000,
+    95000
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.7,
+   "weight": 5
+  },
+  {
+   "itemType": "Smartphone mobile phone",
+   "category": "Electronics",
+   "brands": [
+    "Apple",
+    "Samsung",
+    "OnePlus",
+    "Redmi",
+    "Realme",
+    "Vivo"
+   ],
+   "variants": [
+    "64GB",
+    "128GB",
+    "256GB"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    9000,
+    80000
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.7,
+   "weight": 6
+  },
+  {
+   "itemType": "Tablet iPad",
+   "category": "Electronics",
+   "brands": [
+    "Apple",
+    "Samsung",
+    "Lenovo"
+   ],
+   "variants": [
+    "64GB",
+    "128GB"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    15000,
+    60000
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.7,
+   "weight": 2
+  },
+  {
+   "itemType": "Wired earphones",
+   "category": "Electronics",
+   "brands": [
+    "boAt",
+    "Sony",
+    "JBL",
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    299,
+    1800
+   ],
+   "kind": "reusable",
+   "decayMonths": 24,
+   "resaleFactor": 0.45,
+   "weight": 5
+  },
+  {
+   "itemType": "Bluetooth headphones",
+   "category": "Electronics",
+   "brands": [
+    "boAt",
+    "Sony",
+    "JBL",
+    "Noise",
+    "Generic"
+   ],
+   "variants": [
+    "Over ear",
+    "On ear"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1200,
+    9000
+   ],
+   "kind": "reusable",
+   "decayMonths": 30,
+   "resaleFactor": 0.55,
+   "weight": 4
+  },
+  {
+   "itemType": "Wireless earbuds TWS",
+   "category": "Electronics",
+   "brands": [
+    "boAt",
+    "Apple",
+    "OnePlus",
+    "Noise",
+    "Realme"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1000,
+    12000
+   ],
+   "kind": "reusable",
+   "decayMonths": 24,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Power bank",
+   "category": "Electronics",
+   "brands": [
+    "Mi",
+    "Anker",
+    "Ambrane",
+    "Realme"
+   ],
+   "variants": [
+    "10000mAh",
+    "20000mAh"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    700,
+    2800
+   ],
+   "kind": "reusable",
+   "decayMonths": 30,
+   "resaleFactor": 0.55,
+   "weight": 5
+  },
+  {
+   "itemType": "Smartwatch",
+   "category": "Electronics",
+   "brands": [
+    "Apple",
+    "Noise",
+    "boAt",
+    "Fire-Boltt",
+    "Samsung"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1500,
+    35000
+   ],
+   "kind": "reusable",
+   "decayMonths": 30,
+   "resaleFactor": 0.55,
+   "weight": 2
+  },
+  {
+   "itemType": "Wireless mouse",
+   "category": "Electronics",
+   "brands": [
+    "Logitech",
+    "HP",
+    "Dell",
+    "Zebronics"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    400,
+    2500
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.55,
+   "weight": 4
+  },
+  {
+   "itemType": "Keyboard",
+   "category": "Electronics",
+   "brands": [
+    "Logitech",
+    "HP",
+    "Dell",
+    "Zebronics"
+   ],
+   "variants": [
+    "Wired",
+    "Wireless",
+    "Mechanical"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    500,
+    5000
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.55,
+   "weight": 3
+  },
+  {
+   "itemType": "External hard drive pen drive",
+   "category": "Electronics",
+   "brands": [
+    "WD",
+    "Seagate",
+    "SanDisk",
+    "HP"
+   ],
+   "variants": [
+    "500GB",
+    "1TB",
+    "2TB",
+    "64GB",
+    "128GB"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    500,
+    6500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.62,
+   "weight": 4
+  },
+  {
+   "itemType": "Arduino Raspberry Pi electronics kit",
+   "category": "Electronics",
+   "brands": [
+    "Arduino",
+    "Raspberry Pi",
+    "Generic"
+   ],
+   "variants": [
+    "Starter kit",
+    "Uno",
+    "Pi 4"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    600,
+    7500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.6,
+   "weight": 4
+  },
+  {
+   "itemType": "Monitor display",
+   "category": "Electronics",
+   "brands": [
+    "Dell",
+    "LG",
+    "Samsung",
+    "HP",
+    "Acer"
+   ],
+   "variants": [
+    "22 inch",
+    "24 inch",
+    "27 inch"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    6000,
+    22000
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.62,
+   "weight": 2
+  },
+  {
+   "itemType": "Bluetooth speaker",
+   "category": "Electronics",
+   "brands": [
+    "JBL",
+    "boAt",
+    "Sony",
+    "Mi"
+   ],
+   "variants": [
+    "Portable"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    800,
+    9000
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.55,
+   "weight": 3
+  },
+  {
+   "itemType": "Camera DSLR",
+   "category": "Electronics",
+   "brands": [
+    "Canon",
+    "Nikon",
+    "Sony"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    15000,
+    70000
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.72,
+   "weight": 1
+  },
+  {
+   "itemType": "Study table desk",
+   "category": "Furniture",
+   "brands": [
+    "Generic",
+    "Nilkamal",
+    "Godrej"
+   ],
+   "variants": [
+    "Wooden",
+    "Foldable",
+    "Metal"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1500,
+    8000
+   ],
+   "kind": "reusable",
+   "decayMonths": 96,
+   "resaleFactor": 0.5,
+   "weight": 6
+  },
+  {
+   "itemType": "Study chair",
+   "category": "Furniture",
+   "brands": [
+    "Nilkamal",
+    "Godrej",
+    "Generic",
+    "Featherlite"
+   ],
+   "variants": [
+    "Plastic",
+    "Ergonomic",
+    "Wooden"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    800,
+    7000
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.48,
+   "weight": 6
+  },
+  {
+   "itemType": "Bookshelf rack",
+   "category": "Furniture",
+   "brands": [
+    "Nilkamal",
+    "Generic",
+    "Godrej"
+   ],
+   "variants": [
+    "3 shelf",
+    "4 shelf",
+    "5 shelf"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1200,
+    6000
+   ],
+   "kind": "reusable",
+   "decayMonths": 96,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Mattress",
+   "category": "Furniture",
+   "brands": [
+    "Sleepwell",
+    "Kurlon",
+    "Wakefit",
+    "Generic"
+   ],
+   "variants": [
+    "Single",
+    "Double"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    2500,
+    14000
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.4,
+   "weight": 5
+  },
+  {
+   "itemType": "Folding bed cot",
+   "category": "Furniture",
+   "brands": [
+    "Generic",
+    "Nilkamal"
+   ],
+   "variants": [
+    "Single"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1500,
+    5500
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.5,
+   "weight": 3
+  },
+  {
+   "itemType": "Storage cabinet wardrobe",
+   "category": "Furniture",
+   "brands": [
+    "Godrej",
+    "Nilkamal",
+    "Generic"
+   ],
+   "variants": [
+    "Small",
+    "Medium"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    3500,
+    16000
+   ],
+   "kind": "reusable",
+   "decayMonths": 120,
+   "resaleFactor": 0.5,
+   "weight": 2
+  },
+  {
+   "itemType": "Bean bag",
+   "category": "Furniture",
+   "brands": [
+    "Generic",
+    "Wakefit"
+   ],
+   "variants": [
+    "XL",
+    "XXL"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    900,
+    3500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.45,
+   "weight": 2
+  },
+  {
+   "itemType": "Plastic stool",
+   "category": "Furniture",
+   "brands": [
+    "Nilkamal",
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    250,
+    900
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.45,
+   "weight": 3
+  },
+  {
+   "itemType": "Laptop table",
+   "category": "Furniture",
+   "brands": [
+    "Generic",
+    "Nilkamal"
+   ],
+   "variants": [
+    "Foldable",
+    "Adjustable"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    500,
+    3000
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Geared cycle",
+   "category": "Cycles",
+   "brands": [
+    "Hero",
+    "Hercules",
+    "Firefox",
+    "Btwin",
+    "Giant"
+   ],
+   "variants": [
+    "21 speed",
+    "18 speed",
+    "7 speed"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    8000,
+    35000
+   ],
+   "kind": "reusable",
+   "decayMonths": 96,
+   "resaleFactor": 0.62,
+   "weight": 5
+  },
+  {
+   "itemType": "Non-geared cycle",
+   "category": "Cycles",
+   "brands": [
+    "Hero",
+    "Atlas",
+    "Hercules",
+    "Avon"
+   ],
+   "variants": [
+    "Single speed",
+    "26T",
+    "24T"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    3500,
+    9500
+   ],
+   "kind": "reusable",
+   "decayMonths": 96,
+   "resaleFactor": 0.58,
+   "weight": 6
+  },
+  {
+   "itemType": "Electric scooter",
+   "category": "Cycles",
+   "brands": [
+    "Ola",
+    "Ather",
+    "Hero Electric"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    35000,
+    110000
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.62,
+   "weight": 1
+  },
+  {
+   "itemType": "Cycle helmet",
+   "category": "Cycles",
+   "brands": [
+    "Btwin",
+    "Vega",
+    "Generic"
+   ],
+   "variants": [
+    "Adult"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    400,
+    2500
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.4,
+   "weight": 3
+  },
+  {
+   "itemType": "Cycle lock chain",
+   "category": "Cycles",
+   "brands": [
+    "Generic",
+    "Btwin"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    150,
+    900
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.45,
+   "weight": 3
+  },
+  {
+   "itemType": "Cycle accessories pump light basket",
+   "category": "Cycles",
+   "brands": [
+    "Generic"
+   ],
+   "variants": [
+    "Set"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    200,
+    1500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.4,
+   "weight": 3
+  },
+  {
+   "itemType": "Mini drafter",
+   "category": "Stationery",
+   "brands": [
+    "Omega",
+    "Camlin",
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    250,
+    800
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.5,
+   "weight": 5
+  },
+  {
+   "itemType": "Geometry box",
+   "category": "Stationery",
+   "brands": [
+    "Camlin",
+    "Faber-Castell",
+    "Classmate"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    100,
+    350
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.4,
+   "weight": 4
+  },
+  {
+   "itemType": "Lab notebook record file",
+   "category": "Stationery",
+   "brands": [
+    "Classmate",
+    "Navneet",
+    "Generic"
+   ],
+   "variants": [
+    "Set of 3",
+    "Single"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    80,
+    450
+   ],
+   "kind": "reusable",
+   "decayMonths": 24,
+   "resaleFactor": 0.35,
+   "weight": 4
+  },
+  {
+   "itemType": "Drawing board A3",
+   "category": "Stationery",
+   "brands": [
+    "Omega",
+    "Generic"
+   ],
+   "variants": [
+    "A3",
+    "A2"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    300,
+    900
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.45,
+   "weight": 3
+  },
+  {
+   "itemType": "Art supplies paint colour set",
+   "category": "Stationery",
+   "brands": [
+    "Camlin",
+    "Faber-Castell",
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    150,
+    1200
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.35,
+   "weight": 3
+  },
+  {
+   "itemType": "Pen set and highlighters",
+   "category": "Stationery",
+   "brands": [
+    "Parker",
+    "Pilot",
+    "Reynolds",
+    "Cello"
+   ],
+   "variants": [
+    "Set"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    100,
+    1500
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.35,
+   "weight": 4
+  },
+  {
+   "itemType": "Sketchbook notebook diary",
+   "category": "Stationery",
+   "brands": [
+    "Classmate",
+    "Camlin",
+    "Generic"
+   ],
+   "variants": [
+    "A4",
+    "A5"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    80,
+    500
+   ],
+   "kind": "reusable",
+   "decayMonths": 24,
+   "resaleFactor": 0.3,
+   "weight": 3
+  },
+  {
+   "itemType": "Clipboard file folder",
+   "category": "Stationery",
+   "brands": [
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    50,
+    350
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.35,
+   "weight": 2
+  },
+  {
+   "itemType": "Backpack",
+   "category": "Accessories",
+   "brands": [
+    "Wildcraft",
+    "Skybags",
+    "American Tourister",
+    "Generic"
+   ],
+   "variants": [
+    "25L",
+    "30L",
+    "35L"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    700,
+    4500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.55,
+   "weight": 7
+  },
+  {
+   "itemType": "Lab coat",
+   "category": "Accessories",
+   "brands": [
+    "Generic",
+    "Campus",
+    "Manpro"
+   ],
+   "variants": [
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    350,
+    1100
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.45,
+   "weight": 6
+  },
+  {
+   "itemType": "Wrist watch",
+   "category": "Accessories",
+   "brands": [
+    "Casio",
+    "Titan",
+    "Fastrack",
+    "Fossil"
+   ],
+   "variants": [
+    "Analog",
+    "Digital"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    800,
+    9000
+   ],
+   "kind": "reusable",
+   "decayMonths": 84,
+   "resaleFactor": 0.6,
+   "weight": 3
+  },
+  {
+   "itemType": "Sunglasses",
+   "category": "Accessories",
+   "brands": [
+    "Ray-Ban",
+    "Fastrack",
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    400,
+    6500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.45,
+   "weight": 2
+  },
+  {
+   "itemType": "Laptop bag sleeve",
+   "category": "Accessories",
+   "brands": [
+    "Dell",
+    "HP",
+    "Wildcraft",
+    "Generic"
+   ],
+   "variants": [
+    "14 inch",
+    "15.6 inch"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    500,
+    3000
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Water bottle flask",
+   "category": "Accessories",
+   "brands": [
+    "Milton",
+    "Cello",
+    "Generic"
+   ],
+   "variants": [
+    "1L",
+    "750ml"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    200,
+    1200
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.4,
+   "weight": 4
+  },
+  {
+   "itemType": "Jacket hoodie",
+   "category": "Accessories",
+   "brands": [
+    "Nike",
+    "Adidas",
+    "Puma",
+    "Generic"
+   ],
+   "variants": [
+    "M",
+    "L",
+    "XL"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    800,
+    5000
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.45,
+   "weight": 4
+  },
+  {
+   "itemType": "Sports shoes sneakers",
+   "category": "Accessories",
+   "brands": [
+    "Nike",
+    "Adidas",
+    "Puma",
+    "Campus",
+    "Bata"
+   ],
+   "variants": [
+    "UK 7",
+    "UK 8",
+    "UK 9",
+    "UK 10"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1000,
+    9000
+   ],
+   "kind": "reusable",
+   "decayMonths": 24,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Wallet belt",
+   "category": "Accessories",
+   "brands": [
+    "Generic",
+    "Wildcraft",
+    "Fastrack"
+   ],
+   "variants": [
+    "Leather"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    200,
+    1500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.4,
+   "weight": 2
+  },
+  {
+   "itemType": "Electric kettle",
+   "category": "Appliances",
+   "brands": [
+    "Prestige",
+    "Philips",
+    "Pigeon",
+    "Havells"
+   ],
+   "variants": [
+    "1L",
+    "1.5L",
+    "1.8L"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    500,
+    2500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.5,
+   "weight": 7
+  },
+  {
+   "itemType": "Induction cooktop",
+   "category": "Appliances",
+   "brands": [
+    "Prestige",
+    "Philips",
+    "Pigeon",
+    "Bajaj"
+   ],
+   "variants": [
+    "1600W",
+    "2000W"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1500,
+    4500
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.52,
+   "weight": 5
+  },
+  {
+   "itemType": "Room cooler",
+   "category": "Appliances",
+   "brands": [
+    "Symphony",
+    "Bajaj",
+    "Orient",
+    "Crompton"
+   ],
+   "variants": [
+    "Personal",
+    "Tower"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    3500,
+    12000
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.52,
+   "weight": 4
+  },
+  {
+   "itemType": "Table fan pedestal fan",
+   "category": "Appliances",
+   "brands": [
+    "Usha",
+    "Havells",
+    "Orient",
+    "Bajaj"
+   ],
+   "variants": [
+    "Table",
+    "Pedestal"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    900,
+    3800
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.5,
+   "weight": 6
+  },
+  {
+   "itemType": "Electric iron",
+   "category": "Appliances",
+   "brands": [
+    "Philips",
+    "Bajaj",
+    "Usha"
+   ],
+   "variants": [
+    "Dry",
+    "Steam"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    400,
+    2200
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Mini fridge refrigerator",
+   "category": "Appliances",
+   "brands": [
+    "Haier",
+    "Godrej",
+    "Whirlpool",
+    "LG"
+   ],
+   "variants": [
+    "50L",
+    "90L",
+    "190L"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    7000,
+    19000
+   ],
+   "kind": "reusable",
+   "decayMonths": 96,
+   "resaleFactor": 0.55,
+   "weight": 3
+  },
+  {
+   "itemType": "Rice cooker",
+   "category": "Appliances",
+   "brands": [
+    "Prestige",
+    "Philips",
+    "Pigeon"
+   ],
+   "variants": [
+    "1.8L",
+    "2.8L"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    900,
+    3500
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.5,
+   "weight": 3
+  },
+  {
+   "itemType": "Hair dryer straightener",
+   "category": "Appliances",
+   "brands": [
+    "Philips",
+    "Havells",
+    "Nova"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    500,
+    2800
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.45,
+   "weight": 3
+  },
+  {
+   "itemType": "Immersion rod water heater",
+   "category": "Appliances",
+   "brands": [
+    "Bajaj",
+    "Havells",
+    "Generic"
+   ],
+   "variants": [
+    "1500W"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    250,
+    1500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.45,
+   "weight": 4
+  },
+  {
+   "itemType": "Microwave oven",
+   "category": "Appliances",
+   "brands": [
+    "IFB",
+    "LG",
+    "Samsung"
+   ],
+   "variants": [
+    "20L",
+    "25L"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    4500,
+    12000
+   ],
+   "kind": "reusable",
+   "decayMonths": 96,
+   "resaleFactor": 0.55,
+   "weight": 2
+  },
+  {
+   "itemType": "Study lamp LED desk lamp",
+   "category": "Appliances",
+   "brands": [
+    "Philips",
+    "Wipro",
+    "Syska",
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    300,
+    2000
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.45,
+   "weight": 5
+  },
+  {
+   "itemType": "Extension board",
+   "category": "Appliances",
+   "brands": [
+    "Anchor",
+    "Havells",
+    "Generic"
+   ],
+   "variants": [
+    "4 socket",
+    "6 socket"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    200,
+    900
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.4,
+   "weight": 4
+  },
+  {
+   "itemType": "Room heater",
+   "category": "Appliances",
+   "brands": [
+    "Bajaj",
+    "Havells",
+    "Usha"
+   ],
+   "variants": [
+    "Fan heater",
+    "Oil radiator"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1200,
+    6500
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.5,
+   "weight": 2
+  },
+  {
+   "itemType": "Badminton racket",
+   "category": "Other",
+   "brands": [
+    "Yonex",
+    "Li-Ning",
+    "Cosco",
+    "Generic"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    500,
+    5500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.45,
+   "weight": 5
+  },
+  {
+   "itemType": "Cricket bat kit",
+   "category": "Other",
+   "brands": [
+    "SG",
+    "SS",
+    "MRF",
+    "Kookaburra"
+   ],
+   "variants": [
+    "Kashmir willow",
+    "English willow"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    700,
+    12000
+   ],
+   "kind": "reusable",
+   "decayMonths": 60,
+   "resaleFactor": 0.5,
+   "weight": 3
+  },
+  {
+   "itemType": "Football basketball volleyball",
+   "category": "Other",
+   "brands": [
+    "Nivia",
+    "Cosco",
+    "Spalding"
+   ],
+   "variants": [
+    "Size 5",
+    "Size 7"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    400,
+    2500
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.4,
+   "weight": 3
+  },
+  {
+   "itemType": "Acoustic guitar",
+   "category": "Other",
+   "brands": [
+    "Yamaha",
+    "Fender",
+    "Givson",
+    "Kadence"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    3500,
+    25000
+   ],
+   "kind": "reusable",
+   "decayMonths": 120,
+   "resaleFactor": 0.6,
+   "weight": 3
+  },
+  {
+   "itemType": "Musical keyboard",
+   "category": "Other",
+   "brands": [
+    "Casio",
+    "Yamaha"
+   ],
+   "variants": [
+    "61 keys"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    6000,
+    30000
+   ],
+   "kind": "reusable",
+   "decayMonths": 96,
+   "resaleFactor": 0.6,
+   "weight": 1
+  },
+  {
+   "itemType": "Dumbbell gym set",
+   "category": "Other",
+   "brands": [
+    "Generic",
+    "Kore",
+    "Cosco"
+   ],
+   "variants": [
+    "10kg",
+    "20kg"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    800,
+    5000
+   ],
+   "kind": "reusable",
+   "decayMonths": 120,
+   "resaleFactor": 0.55,
+   "weight": 3
+  },
+  {
+   "itemType": "Yoga mat",
+   "category": "Other",
+   "brands": [
+    "Generic",
+    "Decathlon"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    250,
+    1500
+   ],
+   "kind": "reusable",
+   "decayMonths": 36,
+   "resaleFactor": 0.4,
+   "weight": 3
+  },
+  {
+   "itemType": "Suitcase trolley bag",
+   "category": "Other",
+   "brands": [
+    "American Tourister",
+    "Safari",
+    "Skybags",
+    "VIP"
+   ],
+   "variants": [
+    "Cabin",
+    "Medium",
+    "Large"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    1500,
+    9000
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.5,
+   "weight": 4
+  },
+  {
+   "itemType": "Board game chess carrom",
+   "category": "Other",
+   "brands": [
+    "Generic",
+    "Funskool"
+   ],
+   "variants": [
+    "Standard"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    200,
+    2500
+   ],
+   "kind": "reusable",
+   "decayMonths": 72,
+   "resaleFactor": 0.45,
+   "weight": 3
+  },
+  {
+   "itemType": "Bucket mug storage box set",
+   "category": "Other",
+   "brands": [
+    "Generic"
+   ],
+   "variants": [
+    "Set"
+   ],
+   "packQuantities": [
+    1
+   ],
+   "priceRangeInr": [
+    150,
+    1200
+   ],
+   "kind": "reusable",
+   "decayMonths": 48,
+   "resaleFactor": 0.35,
+   "weight": 3
+  }
+ ]
 }

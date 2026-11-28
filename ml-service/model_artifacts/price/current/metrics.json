@@ -1,0 +1,130 @@
+{
+  "modelName": "CampusKart price estimator",
+  "modelVersion": "marketplace-v3-r2",
+  "selectedEstimator": "XGBRegressor",
+  "selectionMetric": "lowest MAE on one untouched 20% holdout after comparing candidate models",
+  "finalHoldoutMetrics": {
+    "maeInr": 495.31,
+    "rmseInr": 2321.93,
+    "r2": 0.85464,
+    "medianAbsPercentError": 14.83
+  },
+  "candidateMetrics": {
+    "Ridge": {
+      "maeInr": 614.48,
+      "rmseInr": 2535.79,
+      "r2": 0.82663,
+      "candidateTrainingRows": 100000
+    },
+    "XGBRegressor": {
+      "maeInr": 503.72,
+      "rmseInr": 2339.35,
+      "r2": 0.85245,
+      "candidateTrainingRows": 100000
+    }
+  },
+  "dataset": {
+    "pathAtTraining": "C:\\Users\\HP\\CampusKart\\ml-service\\data\\synthetic\\campuskart_listings_v2.csv",
+    "file": "campuskart_listings_v2.csv",
+    "sha256": "2892476111b6bb35c1c193f5394c73b8aa024f7e00c99fc88f089eecec540c2a",
+    "manifest": {
+      "dataset": "CampusKart synthetic college marketplace listings",
+      "version": "v2",
+      "catalogVersion": "campuskart-marketplace-v3",
+      "catalogFile": "product_catalog.json",
+      "rows": 400000,
+      "seed": 20261128,
+      "chunkSize": 50000,
+      "csv": "campuskart_listings_v2.csv",
+      "sha256": "2892476111b6bb35c1c193f5394c73b8aa024f7e00c99fc88f089eecec540c2a",
+      "generatedAtUtc": "2026-11-28T11:10:11.424753+00:00",
+      "syntheticOnly": true,
+      "purpose": "Pipeline development, load testing, and baseline model experiments; not production performance evidence.",
+      "columns": [
+        "listing_id",
+        "category",
+        "item_type",
+        "brand",
+        "variant",
+        "pack_quantity",
+        "item_kind",
+        "original_price_inr",
+        "age_months",
+        "condition",
+        "is_perishable",
+        "days_until_expiry",
+        "opened",
+        "listed_price_inr",
+        "completed_sale",
+        "sale_price_inr",
+        "fair_reference_price_inr",
+        "account_age_days",
+        "total_listings",
+        "listings_last_7_days",
+        "previous_reports",
+        "completed_sales_count",
+        "rejected_listings_count",
+        "average_price_deviation",
+        "synthetic_suspicious_label"
+      ],
+      "catalogSummary": {
+        "distinctItemTypes": 79,
+        "categories": [
+          "Accessories",
+          "Appliances",
+          "Books",
+          "Cycles",
+          "Electronics",
+          "Furniture",
+          "Other",
+          "Stationery"
+        ],
+        "itemKinds": [
+          "reusable",
+          "consumable",
+          "perishable"
+        ]
+      },
+      "limitations": [
+        "Catalog prices and weights are configurable synthetic assumptions, not verified local retail or resale observations.",
+        "Price labels follow hand-designed depreciation, condition, expiry, and noise rules.",
+        "Synthetic suspicious labels encode generated scenarios, not confirmed fraud cases.",
+        "No personal data, real students, real transactions, or measured campus demand are represented."
+      ]
+    },
+    "csvRows": 400000,
+    "completedSaleRowsUsed": 248035,
+    "trainRows": 198428,
+    "testRows": 49607,
+    "splitSeed": 42,
+    "generatorSeed": 20261128,
+    "syntheticOnly": true
+  },
+  "features": [
+    "category",
+    "brand",
+    "condition",
+    "title",
+    "original_price_inr",
+    "log_original_price",
+    "age_months"
+  ],
+  "target": "sale_price_inr",
+  "excludedFields": [
+    "fair_reference_price_inr",
+    "listed_price_inr",
+    "synthetic_suspicious_label",
+    "listing_id"
+  ],
+  "fitDetails": {
+    "candidateSampleRows": 100000,
+    "selectedModelFinalFitRows": 198428
+  },
+  "versions": {
+    "python": "3.13.5",
+    "scikitLearn": "1.7.0",
+    "numpy": "2.3.1"
+  },
+  "trainedAtUtc": "2026-11-28T11:10:53.696441+00:00",
+  "caveat": "Synthetic holdout metrics are pipeline diagnostics and do not establish real-campus pricing accuracy."
+}

@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = ROOT / "data" / "synthetic" / "campuskart_listings_v2.csv"
 ARTIFACT_ROOT = Path(os.getenv("MODEL_STORAGE_ROOT", ROOT / "model_artifacts")) / "fraud"
 CURRENT_DIR = ARTIFACT_ROOT / "current"
-FEATURES = ["priceDeviation", "accountAgeInDays", "totalListings", "listingsLast7Days", "previousReports", "completedSalesCount", "rejectedListingsCount", "averagePriceDeviation"]
+FEATURES = ["priceDeviation", "totalListings", "listingsLast7Days", "previousReports", "completedSalesCount", "rejectedListingsCount", "averagePriceDeviation"]
 USECOLS = ["listed_price_inr", "fair_reference_price_inr", "account_age_days", "total_listings", "listings_last_7_days", "previous_reports", "completed_sales_count", "rejected_listings_count", "average_price_deviation", "synthetic_suspicious_label"]
 
 
@@ -36,7 +36,6 @@ def _input_frame(data_path: Path) -> tuple[pd.DataFrame, pd.Series]:
     fair = frame["fair_reference_price_inr"].clip(lower=1)
     x = pd.DataFrame({
         "priceDeviation": ((frame["listed_price_inr"] - fair).abs() / fair).clip(0, 5),
-        "accountAgeInDays": frame["account_age_days"],
         "totalListings": frame["total_listings"],
         "listingsLast7Days": frame["listings_last_7_days"],
         "previousReports": frame["previous_reports"],
@@ -92,7 +91,7 @@ def train_model(data_path: Path = DATA_PATH, run_id: str | None = None, fit_rows
         "modelVersion": run_id,
         "algorithm": "IsolationForest trained on generated benign profiles",
         "rows": int(len(x)), "fitRows": int(fit_count), "holdoutRows": int(len(x_test)),
-        "features": FEATURES, "transformation": "log1p(non-negative features), then StandardScaler",
+        "features": FEATURES, "excludedFields": ["account_age_days"], "transformation": "log1p(non-negative features), then StandardScaler",
         "expectedContamination": 0.045, "randomSeed": 42,
         "syntheticScenarioDiagnostics": diagnostic,
         "dataset": {"file": data_path.name, "sha256": digest, "generatorSeed": manifest.get("seed"), "syntheticOnly": True},
