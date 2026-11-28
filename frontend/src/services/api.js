@@ -1,16 +1,11 @@
 import axios from 'axios';
 import * as storage from './storage';
-import {
-  sanitizeProduct,
-  resolveImageUrl,
-  getProductImageUrl,
-  getProductImages,
-} from '../utils/imageUrl';
+import { sanitizeProduct } from '../utils/imageUrl';
 
-// Base Axios instance matching backend configuration
+// Base Axios instance. Set VITE_API_URL in frontend/.env (see frontend/.env.example).
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  timeout: 10000,
+  timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -23,276 +18,195 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Let the browser set the multipart boundary for file uploads
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: handle 401 token expiration gracefully
+// Response interceptor: an expired/invalid token logs the user out everywhere
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token invalid or expired
-      const isAuthEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/register');
-      if (!isAuthEndpoint) {
-        storage.removeToken();
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+      if (!isAuthEndpoint && storage.getToken()) {
+        storage.clearUser();
+        window.dispatchEvent(new Event('campuskart_logged_out'));
       }
     }
     return Promise.reject(error);
   }
 );
 
-// Authentication API methods
+// ---------- Error helpers (so pages can show what the backend said) ----------
+
+// A readable message for any failed request
+export function getErrorMessage(err, fallback = 'Something went wrong. Please try again.') {
+  if (!err) return fallback;
+  if (!err.response) {
+    return err.code === 'ECONNABORTED'
+      ? 'The server took too long to respond. Please try again.'
+      : 'Cannot reach the CampusKart server. Check that the backend is running and VITE_API_URL is correct.';
+  }
+  const data = err.response.data || {};
+  if (data.errors?.length && data.message === 'Validation failed') {
+    return data.errors.map((e) => e.message).join(' • ');
+  }
+  return data.message || fallback;
+}
+
+// { fieldName: 'message' } from a 400 "Validation failed" response
+export function getFieldErrors(err) {
+  const errors = err?.response?.data?.errors || [];
+  return Object.fromEntries(errors.map((e) => [e.field || 'form', e.message]));
+}
+
+// ---------- Shape adapters ----------
+
+// Backend product → the shape the UI components use (id, categoryName, seller, image)
+export function normalizeProduct(p) {
+  if (!p) return p;
+  const seller = p.sellerId && typeof p.sellerId === 'object' ? p.sellerId : null;
+  const sellerName = seller?.name || 'Student';
+  return sanitizeProduct({
+    ...p,
+    id: p._id || p.id,
+    categoryName: p.category,
+    sellerId: seller?._id || p.sellerId,
+    seller: { id: seller?._id || p.sellerId, name: sellerName, avatar: sellerName.charAt(0).toUpperCase() },
+  });
+}
+
+const withProducts = (data) => ({ ...data, items: (data.items || []).map(normalizeProduct) });
+
+// ---------- Auth ----------
 export const authApi = {
-  // POST /api/auth/login -> { success: true, token, user }
-  login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
-    return response.data;
-  },
-
-  // POST /api/auth/register -> { success: true, token, user }
-  register: async ({ name, email, password, role = 'STUDENT' }) => {
-    const response = await api.post('/auth/register', { name, email, password, role });
-    return response.data;
-  },
-
-  // POST /api/auth/logout -> { success: true, message }
+  // POST /api/auth/login -> { success, token, user }
+  login: async (email, password) => (await api.post('/auth/login', { email, password })).data,
+  // POST /api/auth/register -> { success, token, user }
+  register: async ({ name, email, password }) => (await api.post('/auth/register', { name, email, password })).data,
+  // POST /api/auth/logout: JWTs are stateless, so this only confirms; the client deletes the token
   logout: async () => {
     try {
-      const response = await api.post('/auth/logout');
-      return response.data;
+      return (await api.post('/auth/logout')).data;
     } catch {
-      // Logout should succeed locally even if server is unreachable
       return { success: true };
     }
   },
 };
 
-// User Profile API methods
+// ---------- Profile ----------
 export const userApi = {
-  // GET /api/users/me (protected) -> { success: true, user }
-  getMe: async () => {
-    const response = await api.get('/users/me');
-    return response.data;
-  },
-
-  // PUT /api/users/me (protected) -> { success: true, user }
-  updateMe: async ({ name, profileImage }) => {
-    const payload = {};
-    if (name !== undefined) payload.name = name;
-    if (profileImage !== undefined) payload.profileImage = profileImage;
-    const response = await api.put('/users/me', payload);
-    return response.data;
-  },
+  getMe: async () => (await api.get('/users/me')).data,
+  // Only name and profileImage (a Cloudinary URL or '') can be changed
+  updateMe: async (payload) => (await api.put('/users/me', payload)).data,
 };
 
-// Product API methods (including backend multipart/form-data upload & fallback)
+// ---------- Products ----------
 export const productApi = {
-  // GET /api/products
-  getProducts: async (params = {}) => {
-    try {
-      const response = await api.get('/products', { params });
-      if (response.data?.items) {
-        return {
-          ...response.data,
-          items: response.data.items.map(sanitizeProduct),
-        };
-      }
-      return response.data;
-    } catch {
-      return { success: true, items: storage.getStoredProducts() };
-    }
-  },
-
-  // GET /api/products/:id
+  // GET /api/products?search&category&condition&location&minPrice&maxPrice&sort&page&limit
+  getProducts: async (params = {}) => withProducts((await api.get('/products', { params: cleanParams(params) })).data),
+  getMyProducts: async (params = {}) => withProducts((await api.get('/products/mine', { params: cleanParams(params) })).data),
   getProductById: async (id) => {
-    try {
-      const response = await api.get(`/products/${id}`);
-      if (response.data?.product) {
-        return {
-          ...response.data,
-          product: sanitizeProduct(response.data.product),
-        };
-      }
-      return response.data;
-    } catch {
-      const local = storage.getProductById(id);
-      return { success: Boolean(local), product: local };
-    }
+    const data = (await api.get(`/products/${id}`)).data;
+    return { ...data, product: normalizeProduct(data.product) };
   },
-
-  // POST /api/products (protected, multipart/form-data, images in field "images")
-  createProduct: async (formData, fallbackData = {}) => {
-    try {
-      // Allow browser/Axios to set multipart boundary automatically
-      const response = await api.post('/products', formData);
-      if (response.data?.success && response.data?.product) {
-        const sanitized = sanitizeProduct(response.data.product);
-        storage.addProduct(sanitized);
-        return { ...response.data, product: sanitized };
-      }
-      return response.data;
-    } catch (err) {
-      console.warn('Backend /api/products offline or returned error; utilizing persistent storage fallback:', err.message);
-      // Convert File objects to persistent Base64 Data URLs so images render and persist across page loads
-      let imageUrls = [];
-      const rawCandidates = fallbackData.files || fallbackData.images || [];
-      const filesToConvert = [];
-      const stringUrls = [];
-
-      if (Array.isArray(rawCandidates)) {
-        for (const item of rawCandidates) {
-          if (typeof File !== 'undefined' && item instanceof File) {
-            filesToConvert.push(item);
-          } else {
-            const resolved = resolveImageUrl(item);
-            if (resolved) stringUrls.push(resolved);
-          }
-        }
-      }
-
-      if (filesToConvert.length > 0) {
-        const converted = await storage.filesToDataUrls(filesToConvert);
-        imageUrls = [...stringUrls, ...converted];
-      } else {
-        imageUrls = stringUrls;
-      }
-
-      if (imageUrls.length === 0 && fallbackData.image) {
-        const resolvedDirect = resolveImageUrl(fallbackData.image);
-        if (resolvedDirect) imageUrls.push(resolvedDirect);
-      }
-
-      const saved = storage.addProduct({
-        ...fallbackData,
-        images: imageUrls,
-        image: imageUrls[0] || '',
-      });
-      return { success: true, product: saved, isLocalFallback: true };
-    }
+  // formData: multipart with fields + files under "images"
+  createProduct: async (formData) => {
+    const data = (await api.post('/products', formData, { timeout: 60000 })).data;
+    return { ...data, product: normalizeProduct(data.product) };
   },
-
-  // PUT /api/products/:id (protected, owner only)
-  updateProduct: async (id, data, fallbackFiles = null) => {
-    try {
-      const response = await api.put(`/products/${id}`, data);
-      if (response.data?.success && response.data?.product) {
-        const sanitized = sanitizeProduct(response.data.product);
-        storage.updateProduct(id, sanitized);
-        return { ...response.data, product: sanitized };
-      }
-      return response.data;
-    } catch (err) {
-      console.warn('Backend update product offline; using local storage fallback:', err.message);
-      let updates = { ...data };
-      if (fallbackFiles && fallbackFiles.length > 0) {
-        const newDataUrls = await storage.filesToDataUrls(fallbackFiles);
-        updates.images = [...(data.existingImages || []), ...newDataUrls];
-        updates.image = updates.images[0];
-      }
-      const updated = storage.updateProduct(id, updates);
-      return { success: true, product: updated, isLocalFallback: true };
-    }
+  updateProduct: async (id, payload) => {
+    const data = (await api.put(`/products/${id}`, payload)).data;
+    return { ...data, product: normalizeProduct(data.product) };
   },
-
-  // PUT /api/products/:id/sold (protected)
-  markSold: async (id) => {
-    try {
-      const response = await api.put(`/products/${id}/sold`);
-      return response.data;
-    } catch {
-      return { success: true, product: storage.updateProduct(id, { status: 'SOLD' }) };
-    }
-  },
+  // Soft delete: the backend sets status REMOVED
+  deleteProduct: async (id) => (await api.delete(`/products/${id}`)).data,
+  markSold: async (id) => (await api.put(`/products/${id}/sold`)).data,
 };
 
-// Interest API methods
+// ---------- Interests ----------
 export const interestApi = {
-  createInterest: async (params) => {
-    return storage.createInterest(params);
-  },
-  getSellerInterests: async (sellerId, sellerEmail) => {
-    return storage.getInterestsBySeller(sellerId, sellerEmail);
-  },
-  getBuyerInterests: async (buyerId, buyerEmail) => {
-    return storage.getInterestsByBuyer(buyerId, buyerEmail);
-  },
-  updateStatus: async (interestId, status) => {
-    return storage.updateInterestStatus(interestId, status);
-  },
-  checkExisting: (productId, buyerId, buyerEmail) => {
-    return storage.getInterestByProductAndBuyer(productId, buyerId, buyerEmail);
-  },
+  create: async (productId, message) => (await api.post(`/products/${productId}/interest`, { message })).data,
+  // role: 'buyer' (sent) | 'seller' (received) | undefined (both)
+  list: async (params = {}) => (await api.get('/interests', { params: cleanParams(params) })).data,
+  updateStatus: async (id, status) => (await api.put(`/interests/${id}`, { status })).data,
 };
 
-// Transaction API methods
+// ---------- Transactions ----------
 export const transactionApi = {
-  createTransaction: async (data) => {
-    const txn = storage.createTransaction(data);
-    // Attempt backend markSold as well
-    if (data.productId) {
-      productApi.markSold(data.productId).catch(() => {});
-    }
-    return txn;
-  },
-  getBuyerTransactions: async (buyerId, buyerEmail) => {
-    return storage.getTransactionsByBuyer(buyerId, buyerEmail);
-  },
-  getSellerTransactions: async (sellerId, sellerEmail) => {
-    return storage.getTransactionsBySeller(sellerId, sellerEmail);
-  },
-  getTransactionById: async (id) => {
-    return storage.getTransactionById(id);
+  create: async (interestId) => (await api.post('/transactions', { interestId })).data,
+  list: async (params = {}) => (await api.get('/transactions', { params: cleanParams(params) })).data,
+  getById: async (id) => (await api.get(`/transactions/${id}`)).data,
+  // The backend decides the result. simulateFailure exists only to demo the failure path.
+  pay: async (id, simulateFailure = false) => (await api.post(`/transactions/${id}/pay`, { simulateFailure })).data,
+  cancel: async (id) => (await api.put(`/transactions/${id}/cancel`)).data,
+};
+
+// ---------- Reports ----------
+export const reportApi = {
+  create: async ({ productId, reason, details }) => (await api.post('/reports', { productId, reason, details })).data,
+};
+
+// ---------- Admin (backend checks the ADMIN role on every call) ----------
+export const adminApi = {
+  getDashboard: async () => (await api.get('/admin/dashboard')).data,
+  getAnalytics: async (report, params = {}) => (await api.get(`/admin/analytics/${report}`, { params: cleanParams(params) })).data,
+  getCommission: async () => (await api.get('/admin/commission')).data,
+  updateCommission: async (commissionRate) => (await api.put('/admin/commission', { commissionRate })).data,
+  getTransactions: async (params = {}) => (await api.get('/admin/transactions', { params: cleanParams(params) })).data,
+  getReports: async (params = {}) => (await api.get('/admin/reports', { params: cleanParams(params) })).data,
+  reviewReport: async (id, payload) => (await api.put(`/admin/reports/${id}`, payload)).data,
+  getUsers: async (params = {}) => (await api.get('/admin/users', { params: cleanParams(params) })).data,
+  setRestricted: async (id, isRestricted) => (await api.put(`/admin/users/${id}/restrict`, { isRestricted })).data,
+  getProducts: async (params = {}) => (await api.get('/admin/products', { params: cleanParams(params) })).data,
+  removeProduct: async (id, reason) => (await api.put(`/admin/products/${id}/remove`, { reason })).data,
+  getAiFlags: async (params = {}) => (await api.get('/admin/ai-flags', { params: cleanParams(params) })).data,
+  reviewAiFlag: async (id, payload) => (await api.put(`/admin/ai-flags/${id}/review`, payload)).data,
+  getModelMetrics: async () => (await api.get('/admin/model-metrics')).data,
+  rescoreListing: async (productId) => (await api.post('/ai/suspicion-score', { productId })).data,
+};
+
+// ---------- AI (the backend calls the ML service; 503 = AI temporarily unavailable) ----------
+export const aiApi = {
+  // { category, brand?, originalPrice, age, condition } → { predictedPrice, fairPriceRange, modelVersion, dataNote }
+  predictPrice: async (features) => (await api.post('/ai/price-prediction', features)).data,
+  // → { label: GOOD DEAL | FAIR | SLIGHTLY HIGH | OVERPRICED, deviationPercent, fairPriceRange, predictedPrice }
+  priceFairness: async (productId) => (await api.post('/ai/price-fairness', { productId })).data,
+  // → { engine, results } in rank order
+  semanticSearch: async (params) => {
+    const data = (await api.post('/ai/semantic-search', cleanParams(params))).data;
+    return { ...data, results: (data.results || []).map(normalizeProduct) };
   },
 };
 
-// Student-to-Student Chat & Negotiation API methods
+// ---------- Local-only features (no backend for these yet) ----------
+
+// Saved items ("wishlist") stay in this browser
+export const savedApi = {
+  getIds: () => storage.getSavedItemIds(),
+  isSaved: (id) => storage.isItemSaved(id),
+  toggle: (id) => storage.toggleSavedItem(id),
+};
+
+// Chat is a demo stored on this device only (outside the blueprint)
 export const chatApi = {
-  getConversations: async (userId, userEmail) => {
-    return storage.getConversationsByUser(userId, userEmail);
-  },
-  getConversationById: async (id) => {
-    return storage.getConversationById(id);
-  },
-  getOrCreateConversation: async (params) => {
-    return storage.getOrCreateConversation(params);
-  },
-  sendMessage: async (params) => {
-    return storage.sendMessage(params);
-  },
-  sendOffer: async (params) => {
-    return storage.sendOffer(params);
-  },
-  respondToOffer: async (params) => {
-    return storage.respondToOffer(params);
-  },
+  getConversations: async (userId, userEmail) => storage.getConversationsByUser(userId, userEmail),
+  getConversationById: async (id) => storage.getConversationById(id),
+  getOrCreateConversation: async (params) => storage.getOrCreateConversation(params),
+  sendMessage: async (params) => storage.sendMessage(params),
+  sendOffer: async (params) => storage.sendOffer(params),
+  respondToOffer: async (params) => storage.respondToOffer(params),
 };
 
-// Mock-backed API service methods for offline / prototype usage
-export const mockApiService = {
-  getProducts: async () => storage.getStoredProducts(),
-  getProduct: async (id) => storage.getProductById(id),
-  createProduct: async (data) => storage.addProduct(data),
-  updateProduct: async (id, data) => storage.updateProduct(id, data),
-  deleteProduct: async (id) => storage.deleteProduct(id),
-  getCurrentUser: () => storage.getCurrentUser(),
-  login: async (credentials) => storage.saveUser(credentials),
-  register: async (userData) => storage.saveUser(userData),
-  getSavedProducts: async () => storage.getSavedProducts(),
-  toggleSave: async (id) => storage.toggleSavedItem(id),
-  getAdminStats: async () => {
-    const products = storage.getStoredProducts();
-    const users = storage.getStoredUsers();
-    const reports = storage.getReportedListings();
-    return {
-      totalUsers: users.length,
-      totalListings: products.length,
-      activeListings: products.filter((p) => p.status === 'Active').length,
-      soldListings: products.filter((p) => p.status === 'Sold').length,
-      reportedCount: reports.length,
-    };
-  },
-};
+// Drop empty filter values so they don't reach the backend as ""
+function cleanParams(params) {
+  return Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '' && v !== 'all'));
+}
 
 export default api;

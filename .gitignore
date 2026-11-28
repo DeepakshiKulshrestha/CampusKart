@@ -26,6 +26,12 @@ ml-service/model_artifacts/fraud/*
 ml-service/.cache/
 ml-service/model_artifacts/*.zip
 
+# Node / build output
+node_modules/
+dist/
+*.log
+backups/
+
 # Editor / OS
 .vscode/
 .idea/

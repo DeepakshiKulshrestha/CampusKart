@@ -1,139 +1,187 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, X, ArrowUpDown, Sparkles } from 'lucide-react';
-import { getStoredProducts } from '../services/storage';
+import { SlidersHorizontal, X, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { productApi, aiApi, getErrorMessage } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import SearchBar from '../components/SearchBar';
 import FilterPanel from '../components/FilterPanel';
 import EmptyState from '../components/EmptyState';
+import ErrorMessage from '../components/ErrorMessage';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
 
+const PAGE_SIZE = 12;
+const FILTER_KEYS = ['q', 'category', 'condition', 'location', 'minPrice', 'maxPrice', 'sort', 'page', 'smart'];
+const SMART_LIMIT = 48;
+
 export default function MarketplacePage() {
+  // The URL is the single source of truth for filters, so filtered views can be shared as links
   const [searchParams, setSearchParams] = useSearchParams();
+  const filters = Object.fromEntries(FILTER_KEYS.map((k) => [k, searchParams.get(k) || '']));
+  const category = filters.category || 'all';
+  const sortBy = filters.sort || 'newest';
+  const page = Math.max(1, Number(filters.page) || 1);
+  // Smart search (AI) only runs when the toggle is on and there is a query of at least 2 characters
+  const smartOn = filters.smart === '1';
+  const useSmart = smartOn && filters.q.trim().length >= 2;
+
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [smartInfo, setSmartInfo] = useState(null); // { engine } or { fallback: message }
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  // Filters can change faster than responses arrive; only the newest request may update the page
+  const latestRequest = useRef(0);
 
-  // Filter States
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
-  const [category, setCategory] = useState(searchParams.get('category') || 'all');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [condition, setCondition] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
+  // Text inputs are typed locally and pushed to the URL after a 400 ms pause (debounce)
+  const [searchInput, setSearchInput] = useState(filters.q);
+  const [locationInput, setLocationInput] = useState(filters.location);
+  const [minInput, setMinInput] = useState(filters.minPrice);
+  const [maxInput, setMaxInput] = useState(filters.maxPrice);
 
-  // Load products
+  const updateParams = useCallback(
+    (changes, { resetPage = true } = {}) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          Object.entries(changes).forEach(([k, v]) => {
+            if (v === '' || v === undefined || v === null || v === 'all') next.delete(k);
+            else next.set(k, String(v));
+          });
+          if (resetPage && !('page' in changes)) next.delete('page');
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput !== filters.q || locationInput !== filters.location || minInput !== filters.minPrice || maxInput !== filters.maxPrice) {
+        updateParams({ q: searchInput.trim(), location: locationInput.trim(), minPrice: minInput, maxPrice: maxInput });
+      }
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, locationInput, minInput, maxInput]);
+
+  // Keep inputs in sync when the URL changes from outside (back button, "Clear all", Home page search)
+  useEffect(() => {
+    setSearchInput(filters.q);
+    setLocationInput(filters.location);
+    setMinInput(filters.minPrice);
+    setMaxInput(filters.maxPrice);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
+
+  const loadProducts = useCallback(async () => {
+    const requestId = ++latestRequest.current;
+    const isStale = () => requestId !== latestRequest.current;
     setIsLoading(true);
-    const timer = setTimeout(() => {
-      const stored = getStoredProducts();
-      setProducts(stored);
-      setIsLoading(false);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, []);
+    setError('');
+    setSmartInfo(null);
+    const params = {
+      category,
+      condition: filters.condition,
+      location: filters.location,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+    };
+    if (useSmart) {
+      try {
+        // Results come back ranked by meaning; there is no sorting or paging in this mode
+        const data = await aiApi.semanticSearch({ query: filters.q.trim(), ...params, limit: SMART_LIMIT });
+        if (isStale()) return;
+        setProducts(data.results);
+        setPagination({ page: 1, total: data.results.length, totalPages: 1 });
+        setSmartInfo({ engine: data.engine });
+        setIsLoading(false);
+        return;
+      } catch (err) {
+        if (isStale()) return;
+        // Fall back to the normal keyword search below and say so
+        setSmartInfo({ fallback: `Smart search is unavailable (${getErrorMessage(err)}). Showing regular search results.` });
+      }
+    }
+    try {
+      const data = await productApi.getProducts({
+        search: filters.q,
+        category,
+        condition: filters.condition,
+        location: filters.location,
+        minPrice: filters.minPrice,
+        maxPrice: filters.maxPrice,
+        sort: filters.sort,
+        page,
+        limit: PAGE_SIZE,
+      });
+      if (isStale()) return;
+      setProducts(data.items);
+      setPagination(data.pagination);
+    } catch (err) {
+      if (isStale()) return;
+      setProducts([]);
+      setError(getErrorMessage(err, 'Could not load listings'));
+    } finally {
+      if (!isStale()) setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
 
-  // Sync URL search params
   useEffect(() => {
-    const urlQ = searchParams.get('q');
-    const urlCat = searchParams.get('category');
-    if (urlQ !== null) setSearchQuery(urlQ);
-    if (urlCat !== null) setCategory(urlCat);
-  }, [searchParams]);
-
-  const handleCategoryChange = (catId) => {
-    setCategory(catId);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (catId && catId !== 'all') {
-        next.set('category', catId);
-      } else {
-        next.delete('category');
-      }
-      return next;
-    });
-  };
-
-  const handleSearchChange = (e) => {
-    const val = e.target.value;
-    setSearchQuery(val);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (val.trim()) {
-        next.set('q', val);
-      } else {
-        next.delete('q');
-      }
-      return next;
-    });
-  };
+    loadProducts();
+  }, [loadProducts]);
 
   const handleResetFilters = () => {
-    setSearchQuery('');
-    setCategory('all');
-    setMinPrice('');
-    setMaxPrice('');
-    setCondition('');
-    setSortBy('newest');
-    setSearchParams({});
+    setSearchInput('');
+    setLocationInput('');
+    setMinInput('');
+    setMaxInput('');
+    setSearchParams({}, { replace: true });
   };
 
-  // Filter and sort products
-  const filteredProducts = useMemo(() => {
-    return products.filter((item) => {
-      // Search query
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        const matchesTitle = item.title?.toLowerCase().includes(query);
-        const matchesDesc = item.description?.toLowerCase().includes(query);
-        const matchesLocation = item.location?.toLowerCase().includes(query);
-        const matchesCategory = item.categoryName?.toLowerCase().includes(query);
-        if (!matchesTitle && !matchesDesc && !matchesLocation && !matchesCategory) {
-          return false;
-        }
-      }
-
-      // Category
-      if (category && category !== 'all') {
-        if (item.category !== category) return false;
-      }
-
-      // Price filter
-      const priceNum = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
-      if (minPrice !== '' && !isNaN(parseFloat(minPrice))) {
-        if (priceNum < parseFloat(minPrice)) return false;
-      }
-      if (maxPrice !== '' && !isNaN(parseFloat(maxPrice))) {
-        if (priceNum > parseFloat(maxPrice)) return false;
-      }
-
-      // Condition filter
-      if (condition && condition !== 'All') {
-        if (item.condition?.toLowerCase() !== condition.toLowerCase()) return false;
-      }
-
-      return true;
-    }).sort((a, b) => {
-      const priceA = typeof a.price === 'number' ? a.price : parseFloat(a.price) || 0;
-      const priceB = typeof b.price === 'number' ? b.price : parseFloat(b.price) || 0;
-
-      if (sortBy === 'price_asc') return priceA - priceB;
-      if (sortBy === 'price_desc') return priceB - priceA;
-      if (sortBy === 'popular') return (b.views || 0) - (a.views || 0);
-      // Default: newest
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
-  }, [products, searchQuery, category, minPrice, maxPrice, condition, sortBy]);
+  const goToPage = (p) => {
+    updateParams({ page: p > 1 ? p : '' }, { resetPage: false });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const activeFilterCount = [
     category !== 'all',
-    searchQuery.trim().length > 0,
-    minPrice !== '',
-    maxPrice !== '',
-    condition !== '' && condition !== 'All',
+    Boolean(filters.q),
+    Boolean(filters.minPrice || filters.maxPrice),
+    Boolean(filters.condition),
+    Boolean(filters.location),
   ].filter(Boolean).length;
+
+  const filterPanelProps = {
+    selectedCategory: category,
+    onCategoryChange: (c) => updateParams({ category: c }),
+    minPrice: minInput,
+    maxPrice: maxInput,
+    onMinPriceChange: setMinInput,
+    onMaxPriceChange: setMaxInput,
+    selectedCondition: filters.condition,
+    onConditionChange: (c) => updateParams({ condition: c }),
+    sortBy,
+    onSortChange: (s) => updateParams({ sort: s === 'newest' ? '' : s }),
+    location: locationInput,
+    onLocationChange: setLocationInput,
+    onReset: handleResetFilters,
+    totalResults: pagination.total,
+  };
+
+  const pill = (label, onClear) => (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E8E8E8] px-3.5 py-1 text-xs font-heading font-bold text-[#111111] shadow-sm">
+      {label}
+      <button type="button" onClick={onClear} className="text-[#62666F] hover:text-[#111111]" aria-label={`Remove ${label}`}>
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  );
 
   return (
     <div className="min-h-screen bg-[#F5F5F2] pb-24 pt-8">
@@ -142,153 +190,144 @@ export default function MarketplacePage() {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-[#0638C9]/10 px-3.5 py-1 text-xs font-heading font-bold text-[#0638C9] mb-2 uppercase tracking-wider">
-              <span>TIET Patiala Campus Listings</span>
+              <span>Campus Listings</span>
             </div>
             <h1 className="text-3xl font-heading font-black text-[#111111] sm:text-4xl tracking-tight">
-              Thapar Campus Marketplace
+              Campus Marketplace
             </h1>
             <p className="mt-1 text-xs text-[#62666F] sm:text-sm">
-              Discover {products.length} student-listed items across TIET hostels and academic blocks
+              {isLoading ? 'Loading listings…' : `${pagination.total} item${pagination.total === 1 ? '' : 's'} available from fellow students`}
             </p>
           </div>
 
-          {/* Search bar inside header */}
-          <div className="w-full sm:w-80 lg:w-96">
+          <div className="w-full sm:w-80 lg:w-[28rem] space-y-2">
             <SearchBar
-              value={searchQuery}
-              onChange={handleSearchChange}
-              placeholder="Search items or locations..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onSubmit={() => updateParams({ q: searchInput.trim() })}
+              placeholder={smartOn ? 'Describe what you need, e.g. "calculator for engineering maths"' : 'Search title, brand or description...'}
               size="md"
             />
+            <label className="flex cursor-pointer items-center justify-end gap-2 text-xs font-heading font-bold text-[#111111]">
+              <Sparkles className={`h-3.5 w-3.5 ${smartOn ? 'text-[#0638C9]' : 'text-[#62666F]'}`} />
+              <span>Smart search (AI)</span>
+              <input
+                type="checkbox"
+                role="switch"
+                aria-label="Smart search"
+                checked={smartOn}
+                onChange={(e) => updateParams({ smart: e.target.checked ? '1' : '' })}
+                className="h-4 w-4 accent-[#0638C9]"
+              />
+            </label>
           </div>
         </div>
 
-        {/* Mobile Filter Toggle & Quick Stats */}
+        {/* Mobile Filter Toggle */}
         <div className="mb-6 flex items-center justify-between rounded-3xl border border-[#E8E8E8] bg-white p-3.5 lg:hidden shadow-sm">
-          <Button
-            variant="lime"
-            size="sm"
-            icon={SlidersHorizontal}
-            onClick={() => setIsMobileFiltersOpen(true)}
-            className="text-xs uppercase"
-          >
+          <Button variant="lime" size="sm" icon={SlidersHorizontal} onClick={() => setIsMobileFiltersOpen(true)} className="text-xs uppercase">
             <span>Filters</span>
             {activeFilterCount > 0 && (
-              <span className="ml-1 rounded-full bg-[#111111] px-1.5 py-0.5 text-[10px] text-white">
-                {activeFilterCount}
-              </span>
+              <span className="ml-1 rounded-full bg-[#111111] px-1.5 py-0.5 text-[10px] text-white">{activeFilterCount}</span>
             )}
           </Button>
-
-          <span className="text-xs font-heading font-bold text-[#111111]">
-            {filteredProducts.length} items found
-          </span>
+          <span className="text-xs font-heading font-bold text-[#111111]">{pagination.total} items found</span>
         </div>
 
-        {/* Main Grid & Sidebar Layout */}
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[270px_1fr]">
           {/* Desktop Filter Panel */}
           <aside className="hidden lg:block">
             <div className="sticky top-24 rounded-4xl border border-[#E8E8E8] bg-white p-6 shadow-card">
-              <FilterPanel
-                selectedCategory={category}
-                onCategoryChange={handleCategoryChange}
-                minPrice={minPrice}
-                maxPrice={maxPrice}
-                onMinPriceChange={setMinPrice}
-                onMaxPriceChange={setMaxPrice}
-                selectedCondition={condition}
-                onConditionChange={setCondition}
-                sortBy={sortBy}
-                onSortChange={setSortBy}
-                onReset={handleResetFilters}
-                totalResults={filteredProducts.length}
-              />
+              <FilterPanel {...filterPanelProps} />
             </div>
           </aside>
 
-          {/* Product Listing Area */}
           <section className="min-w-0">
-            {/* Active filter pills */}
             {activeFilterCount > 0 && (
               <div className="mb-6 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-heading font-bold text-[#62666F] uppercase tracking-wider">Active:</span>
-                {category !== 'all' && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E8E8E8] px-3.5 py-1 text-xs font-heading font-bold text-[#111111] shadow-sm">
-                    Category: {category}
-                    <button
-                      type="button"
-                      onClick={() => handleCategoryChange('all')}
-                      className="text-[#62666F] hover:text-[#111111]"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-                {searchQuery && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E8E8E8] px-3.5 py-1 text-xs font-heading font-bold text-[#111111] shadow-sm">
-                    "{searchQuery}"
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="text-[#62666F] hover:text-[#111111]"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-                {condition && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E8E8E8] px-3.5 py-1 text-xs font-heading font-bold text-[#111111] shadow-sm">
-                    Condition: {condition}
-                    <button
-                      type="button"
-                      onClick={() => setCondition('')}
-                      className="text-[#62666F] hover:text-[#111111]"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-                {(minPrice || maxPrice) && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E8E8E8] px-3.5 py-1 text-xs font-heading font-bold text-[#111111] shadow-sm">
-                    ₹{minPrice || '0'} - ₹{maxPrice || '∞'}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMinPrice('');
-                        setMaxPrice('');
-                      }}
-                      className="text-[#62666F] hover:text-[#111111]"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="text-xs font-heading font-bold text-red-600 hover:underline ml-1"
-                >
+                {category !== 'all' && pill(`Category: ${category}`, () => updateParams({ category: '' }))}
+                {filters.q && pill(`"${filters.q}"`, () => { setSearchInput(''); updateParams({ q: '' }); })}
+                {filters.condition && pill(`Condition: ${filters.condition}`, () => updateParams({ condition: '' }))}
+                {filters.location && pill(`Location: ${filters.location}`, () => { setLocationInput(''); updateParams({ location: '' }); })}
+                {(filters.minPrice || filters.maxPrice) &&
+                  pill(`₹${filters.minPrice || '0'} - ₹${filters.maxPrice || '∞'}`, () => {
+                    setMinInput('');
+                    setMaxInput('');
+                    updateParams({ minPrice: '', maxPrice: '' });
+                  })}
+                <button type="button" onClick={handleResetFilters} className="text-xs font-heading font-bold text-red-600 hover:underline ml-1">
                   Clear all
                 </button>
               </div>
             )}
 
-            {/* Results Grid or Empty State */}
+            {smartInfo?.engine && (
+              <p role="status" className="mb-4 flex items-center gap-1.5 text-xs text-[#62666F]">
+                <Sparkles className="h-3.5 w-3.5 text-[#0638C9]" />
+                Smart search: results ranked by relevance to your description
+                <span className="rounded-full bg-[#0638C9]/10 px-2 py-0.5 font-mono text-[10px] text-[#0638C9]">{smartInfo.engine}</span>
+              </p>
+            )}
+            {smartInfo?.fallback && (
+              <p role="status" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">{smartInfo.fallback}</p>
+            )}
+            {smartOn && !useSmart && (
+              <p className="mb-4 text-xs text-[#62666F]">Smart search is on: type what you're looking for in the search box.</p>
+            )}
             {isLoading ? (
               <div className="py-24">
                 <LoadingSpinner size="lg" label="Loading marketplace listings..." />
               </div>
-            ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+            ) : error ? (
+              <ErrorMessage title="Could not load listings" message={error} onRetry={loadProducts} />
+            ) : products.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+
+                {pagination.totalPages > 1 && (
+                  <nav className="mt-10 flex items-center justify-center gap-2" aria-label="Pagination">
+                    <Button variant="white" size="sm" icon={ChevronLeft} disabled={page <= 1} onClick={() => goToPage(page - 1)}>
+                      Previous
+                    </Button>
+                    {pageNumbers(page, pagination.totalPages).map((p, i) =>
+                      p === '…' ? (
+                        <span key={`gap-${i}`} className="px-1 text-sm text-[#62666F]">…</span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => goToPage(p)}
+                          aria-current={p === page ? 'page' : undefined}
+                          className={`h-9 min-w-9 rounded-full px-3 text-sm font-heading font-bold transition ${
+                            p === page ? 'bg-[#0638C9] text-white' : 'bg-white text-[#111111] border border-[#E8E8E8] hover:border-[#111111]'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                    <Button
+                      variant="white"
+                      size="sm"
+                      icon={ChevronRight}
+                      iconPosition="right"
+                      disabled={page >= pagination.totalPages}
+                      onClick={() => goToPage(page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </nav>
+                )}
+              </>
             ) : (
               <EmptyState
                 title="No listings matched your criteria"
-                description="We couldn't find any items matching your current filters. Try loosening your price range or search terms."
+                description="Try loosening your price range, removing a filter or searching for something else."
                 actionLabel="Reset All Filters"
                 onAction={handleResetFilters}
               />
@@ -297,7 +336,6 @@ export default function MarketplacePage() {
         </div>
       </div>
 
-      {/* Mobile Filters Modal */}
       <Modal
         isOpen={isMobileFiltersOpen}
         onClose={() => setIsMobileFiltersOpen(false)}
@@ -305,35 +343,27 @@ export default function MarketplacePage() {
         size="md"
         footer={
           <div className="flex w-full items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={handleResetFilters}>
-              Reset All
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsMobileFiltersOpen(false)}
-            >
-              Show {filteredProducts.length} Results
+            <Button variant="ghost" size="sm" onClick={handleResetFilters}>Reset All</Button>
+            <Button variant="primary" size="sm" onClick={() => setIsMobileFiltersOpen(false)}>
+              Show {pagination.total} Results
             </Button>
           </div>
         }
       >
-        <FilterPanel
-          selectedCategory={category}
-          onCategoryChange={handleCategoryChange}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          onMinPriceChange={setMinPrice}
-          onMaxPriceChange={setMaxPrice}
-          selectedCondition={condition}
-          onConditionChange={setCondition}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          onReset={handleResetFilters}
-          totalResults={filteredProducts.length}
-        />
+        <FilterPanel {...filterPanelProps} />
       </Modal>
     </div>
   );
 }
 
+// 1 … 4 5 6 … 20
+function pageNumbers(current, total) {
+  const pages = new Set([1, total, current - 1, current, current + 1].filter((p) => p >= 1 && p <= total));
+  const sorted = [...pages].sort((a, b) => a - b);
+  const out = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) out.push('…');
+    out.push(p);
+  });
+  return out;
+}

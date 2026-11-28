@@ -77,6 +77,7 @@ function App() {
               <Route path="/chat/:conversationId" element={<ChatPage />} />
               <Route path="/payment/:interestId" element={<PaymentSimulationPage />} />
               <Route path="/transactions" element={<TransactionHistoryPage />} />
+              <Route path="/transactions/:transactionId" element={<PaymentSimulationPage />} />
             </Route>
 
             {/* Admin-Only Route */}

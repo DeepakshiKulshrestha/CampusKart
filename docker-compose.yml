@@ -1,4 +1,5 @@
 # Local development: frontend + backend + ml-service with one command.
+#   docker compose up --build backend frontend      → backend + frontend only (works before the ML models exist)
 #   docker compose up --build                       → uses your Atlas cluster (backend/.env MONGODB_URI)
 #   docker compose --profile local-db up --build    → also starts a local MongoDB; set
 #                                                     MONGODB_URI=mongodb://mongo:27017/campuskart in backend/.env
@@ -15,10 +16,9 @@ services:
       PORT: 5000
       AI_SERVICE_URL: http://ml-service:8000
       FRONTEND_URL: http://localhost:5173
-    ports: ["5000:5000"]
-    depends_on:
-      ml-service:
-        condition: service_started
+    # Host port 5001: on macOS port 5000 is taken by AirPlay Receiver. Inside the container it is still 5000.
+    # No depends_on ml-service: the marketplace runs without the AI service, so backend + frontend can start alone.
+    ports: ["5001:5000"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -45,7 +45,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     environment:
-      VITE_API_URL: http://localhost:5000/api # the browser calls the backend through the host port
+      VITE_API_URL: http://localhost:5001/api # the browser calls the backend through the host port
     ports: ["5173:5173"]
     volumes:
       - ./frontend/src:/app/src # hot reload

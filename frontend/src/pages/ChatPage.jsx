@@ -186,13 +186,13 @@ export default function ChatPage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-[#0638C9]/10 px-3 py-1 text-xs font-heading font-extrabold text-[#0638C9] uppercase tracking-wider mb-2">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>TIET Verified Campus Chat</span>
+              <span>Demo chat, stored on this device</span>
             </div>
             <h1 className="font-display text-2xl sm:text-3xl font-black text-[#111111] tracking-tight">
               STUDENT MESSAGES & PRICE NEGOTIATION
             </h1>
             <p className="mt-1 text-xs text-[#62666F]">
-              Directly negotiate deals, finalize campus meetup spots at TIET, and pay securely with 5% transparent commission.
+              Demo only: messages are saved in this browser and are not sent to the other student. Use "I'm Interested" on a listing to actually buy.
             </p>
           </div>
 

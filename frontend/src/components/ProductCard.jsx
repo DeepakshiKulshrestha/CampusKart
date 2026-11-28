@@ -10,20 +10,19 @@ export default function ProductCard({
   className = '',
 }) {
   const [saved, setSaved] = useState(() => isItemSaved(product.id));
-  const [currentStatus, setCurrentStatus] = useState(() =>
-    (product.status?.toUpperCase() === 'SOLD' ? 'SOLD' : 'AVAILABLE')
-  );
+  const [currentStatus, setCurrentStatus] = useState(() => (product.status || 'AVAILABLE').toUpperCase());
 
-  // Reactive listener for product status updates
+  // Pages fire this event after marking a product sold, so cards update without a reload
   useEffect(() => {
+    setCurrentStatus((product.status || 'AVAILABLE').toUpperCase());
     const handleUpdate = (e) => {
       if (e.detail?.productId && String(e.detail.productId) === String(product.id)) {
-        setCurrentStatus(e.detail.status?.toUpperCase() === 'SOLD' ? 'SOLD' : 'AVAILABLE');
+        setCurrentStatus((e.detail.status || 'AVAILABLE').toUpperCase());
       }
     };
     window.addEventListener('campuskart_product_updated', handleUpdate);
     return () => window.removeEventListener('campuskart_product_updated', handleUpdate);
-  }, [product.id]);
+  }, [product.id, product.status]);
 
   const handleHeartClick = (e) => {
     e.preventDefault();
@@ -36,12 +35,12 @@ export default function ProductCard({
   const conditionColors = {
     'New': 'bg-emerald-50 text-emerald-700 border-emerald-200',
     'Like New': 'bg-blue-50 text-blue-700 border-blue-200',
-    'Excellent': 'bg-teal-50 text-teal-700 border-teal-200',
+    'Poor': 'bg-red-50 text-red-700 border-red-200',
     'Good': 'bg-amber-50 text-amber-700 border-amber-200',
     'Fair': 'bg-slate-100 text-slate-700 border-slate-200',
   };
 
-  const isSold = currentStatus === 'SOLD';
+  const isSold = currentStatus === 'SOLD' || currentStatus === 'REMOVED';
 
   return (
     <article
@@ -67,7 +66,11 @@ export default function ProductCard({
 
         {/* Reactive Status Badges */}
         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
-          {isSold ? (
+          {currentStatus === 'REMOVED' ? (
+            <span className="rounded-full bg-red-600 px-3 py-1 text-[10px] font-heading font-extrabold uppercase tracking-wider text-white shadow-sm">
+              REMOVED
+            </span>
+          ) : isSold ? (
             <span className="rounded-full bg-[#111111] px-3 py-1 text-[10px] font-heading font-extrabold uppercase tracking-wider text-white shadow-sm">
               SOLD
             </span>
@@ -104,7 +107,7 @@ export default function ProductCard({
         {/* Category & Location */}
         <div className="flex items-center justify-between text-xs">
           <span className="font-heading font-bold uppercase text-[11px] tracking-wider text-[#0638C9]">
-            {product.categoryName || 'General'}
+            {product.categoryName || product.category || 'General'}
           </span>
           {product.location && (
             <span className="inline-flex items-center gap-1 truncate max-w-[140px] text-[#62666F] text-[11px]">

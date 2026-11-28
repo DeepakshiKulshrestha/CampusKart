@@ -1,5 +1,16 @@
 import { z } from 'zod';
-import { ROLES, URL_REGEX, CATEGORIES, CONDITIONS } from '../models/constants.js';
+import {
+  ROLES,
+  URL_REGEX,
+  CATEGORIES,
+  CONDITIONS,
+  INTEREST_STATUS,
+  TRANSACTION_STATUS,
+  PRODUCT_STATUS,
+  REPORT_REASONS,
+  REPORT_STATUS,
+} from '../models/constants.js';
+import { OBJECT_ID } from './http.js';
 
 function validationError(res, zodError) {
   return res.status(400).json({
@@ -84,8 +95,134 @@ const productQuerySchema = z
     path: ['minPrice'],
   });
 
+// ---- Shared ----
+const objectId = (label) => z.string(`${label} is required`).regex(OBJECT_ID, `Invalid ${label}`);
+const optionalEnum = (values) => z.preprocess(blankToUndefined, z.enum(values).optional());
+// "buyer" = things I bought / asked for, "seller" = things sold / asked from me; omitted = both
+const roleFilter = optionalEnum(['buyer', 'seller']);
+
+// ---- Interests ----
+const createInterestSchema = z.object({
+  message: z.preprocess(
+    (v) => (v === null ? undefined : v),
+    z.string().trim().max(500, 'Message must be at most 500 characters').optional()
+  ),
+});
+
+const interestQuerySchema = z.object({
+  ...pageFields,
+  role: roleFilter,
+  status: optionalEnum(INTEREST_STATUS),
+  productId: z.preprocess(blankToUndefined, objectId('productId').optional()),
+});
+
+// Who may set which status is checked in the controller (seller: ACCEPTED/REJECTED, buyer: CANCELLED)
+const updateInterestSchema = z.object({ status: z.enum(['ACCEPTED', 'REJECTED', 'CANCELLED']) });
+
+// ---- Transactions ----
+const createTransactionSchema = z.object({ interestId: objectId('interestId') });
+
+// Payment is simulated: the backend decides the outcome. simulateFailure only exists for testing the failure path.
+const payTransactionSchema = z.object({ simulateFailure: z.boolean().optional().default(false) });
+
+const transactionQuerySchema = z.object({ ...pageFields, role: roleFilter, status: optionalEnum(TRANSACTION_STATUS) });
+
+// ---- Admin ----
+const commissionSchema = z.object({
+  commissionRate: z
+    .number('commissionRate must be a number')
+    .min(0, 'commissionRate cannot be negative')
+    .max(100, 'commissionRate cannot exceed 100'),
+});
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+// Same values as resolveRange() in services/analytics.service.js
+const rangeFields = {
+  range: optionalEnum(['today', 'week', 'month', 'year', 'all', 'custom']),
+  from: z.preprocess(blankToUndefined, z.string().regex(DATE, 'from must be YYYY-MM-DD').optional()),
+  to: z.preprocess(blankToUndefined, z.string().regex(DATE, 'to must be YYYY-MM-DD').optional()),
+};
+
+const adminTransactionQuerySchema = z.object({ ...pageFields, ...rangeFields, status: optionalEnum(TRANSACTION_STATUS) });
+
+const analyticsQuerySchema = z.object({
+  ...rangeFields,
+  granularity: optionalEnum(['hour', 'day', 'month']),
+  limit: num('limit', (s) => s.int().min(1, 'limit must be at least 1').max(20, 'limit cannot exceed 20').optional()),
+});
+
+const searchText = z.preprocess(blankToUndefined, z.string().trim().min(1).max(100, 'search must be at most 100 characters').optional());
+
+const adminUserQuerySchema = z.object({ ...pageFields, search: searchText, role: optionalEnum(ROLES) });
+
+const restrictUserSchema = z.object({ isRestricted: z.boolean('isRestricted must be true or false') });
+
+const adminProductQuerySchema = z.object({ ...pageFields, search: searchText, status: optionalEnum(PRODUCT_STATUS) });
+
+const removeProductSchema = z.object({
+  reason: z.preprocess(blankToUndefined, z.string().trim().max(500, 'reason must be at most 500 characters').optional()),
+});
+
+// ---- Reports ----
+const createReportSchema = z.object({
+  productId: objectId('productId'),
+  reason: z.enum(REPORT_REASONS),
+  details: z.preprocess(blankToUndefined, z.string().trim().max(1000, 'details must be at most 1000 characters').optional()),
+});
+
+const adminReportQuerySchema = z.object({ ...pageFields, status: optionalEnum(REPORT_STATUS) });
+
+const reviewReportSchema = z.object({
+  status: z.enum(['REVIEWED', 'RESOLVED', 'DISMISSED']),
+  adminNote: z.preprocess(blankToUndefined, z.string().trim().max(1000, 'adminNote must be at most 1000 characters').optional()),
+  removeListing: z.boolean().optional().default(false),
+});
+
+// ---- AI ----
+const pricePredictionSchema = z.object({
+  // Optional listing title: the price model reads it as text to tell e.g. a Casio calculator from a generic one
+  title: z.preprocess(blankToUndefined, z.string().trim().max(100, 'Title must be at most 100 characters').optional()),
+  category: z.enum(CATEGORIES),
+  brand: z.preprocess(blankToUndefined, z.string().trim().max(50, 'Brand must be at most 50 characters').optional()),
+  // The price model needs a real starting price, so 0 is not allowed here (it is allowed on listings)
+  originalPrice: num('Original price', (s) => s.gt(0, 'Original price must be greater than 0').max(10_000_000)),
+  age: num('Age', (s) => s.int('Age must be a whole number of months').min(0).max(240, 'Age cannot exceed 240 months')),
+  condition: z.enum(CONDITIONS),
+  location: z.preprocess(blankToUndefined, z.string().trim().max(120).optional()),
+});
+
+const productIdBodySchema = z.object({ productId: objectId('productId') });
+
+const semanticSearchSchema = z
+  .object({
+    query: z.string('query is required').trim().min(2, 'query must be at least 2 characters').max(500, 'query must be at most 500 characters'),
+    category: optionalEnum(CATEGORIES),
+    condition: optionalEnum(CONDITIONS),
+    location: z.preprocess(blankToUndefined, z.string().trim().min(1).max(120).optional()),
+    minPrice: num('minPrice', (s) => s.min(0, 'minPrice cannot be negative').optional()),
+    maxPrice: num('maxPrice', (s) => s.min(0, 'maxPrice cannot be negative').optional()),
+    limit: num('limit', (s) => s.int().min(1, 'limit must be at least 1').max(50, 'limit cannot exceed 50').default(20)),
+  })
+  .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    message: 'minPrice cannot be greater than maxPrice',
+    path: ['minPrice'],
+  });
+
+const aiFlagQuerySchema = z.object({ ...pageFields, adminDecision: optionalEnum(['PENDING', 'CONFIRMED', 'DISMISSED']) });
+
+const reviewAiFlagSchema = z.object({
+  adminDecision: z.enum(['CONFIRMED', 'DISMISSED']),
+  adminNote: z.preprocess(blankToUndefined, z.string().trim().max(1000, 'adminNote must be at most 1000 characters').optional()),
+  removeListing: z.boolean().optional().default(false),
+});
+
 export {
   validationError,
+  pricePredictionSchema,
+  productIdBodySchema,
+  semanticSearchSchema,
+  aiFlagQuerySchema,
+  reviewAiFlagSchema,
   registerSchema,
   loginSchema,
   updateMeSchema,
@@ -93,4 +230,21 @@ export {
   updateProductSchema,
   productQuerySchema,
   myProductsQuerySchema,
+  createInterestSchema,
+  interestQuerySchema,
+  updateInterestSchema,
+  createTransactionSchema,
+  payTransactionSchema,
+  transactionQuerySchema,
+  commissionSchema,
+  rangeFields,
+  adminTransactionQuerySchema,
+  analyticsQuerySchema,
+  adminUserQuerySchema,
+  restrictUserSchema,
+  adminProductQuerySchema,
+  removeProductSchema,
+  createReportSchema,
+  adminReportQuerySchema,
+  reviewReportSchema,
 };
