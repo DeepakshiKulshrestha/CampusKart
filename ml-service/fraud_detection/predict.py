@@ -25,6 +25,9 @@ def score_listing(payload: dict) -> dict:
     artifact = _artifact()
     fair = max(float(payload["predictedFairPrice"]), 1.0)
     deviation = abs(float(payload["listedPrice"]) - fair) / fair
+    # How far BELOW the fair price the listing is. "Too good to be true" pricing is the classic scam pattern,
+    # so it gets its own signal; overpricing is a fairness problem, not fraud.
+    under_fair = max(0.0, (fair - float(payload["listedPrice"])) / fair)
     values = {
         "priceDeviation": deviation,
         # Account age is deliberately NOT a feature or a risk signal: in a campus marketplace most honest
@@ -44,11 +47,14 @@ def score_listing(payload: dict) -> dict:
     anomaly_score = float(np.clip(50 - raw * 160, 0, 100))
     reasons = []
     if deviation >= 0.60: reasons.append({"feature": "priceDeviation", "value": round(deviation * 100, 1), "reason": "Listed price differs from estimated fair price by at least 60%"})
+    if under_fair >= 0.80: reasons.append({"feature": "priceBelowFair", "value": round(under_fair * 100, 1), "reason": "Listed price is at least 80% below the estimated fair price (too good to be true)"})
     if values["listingsLast7Days"] >= 10: reasons.append({"feature": "listingsLast7Days", "value": values["listingsLast7Days"], "reason": "Unusually high listing volume in the last 7 days"})
     if values["previousReports"] >= 2: reasons.append({"feature": "previousReports", "value": values["previousReports"], "reason": "Seller has multiple previous reports"})
     if values["rejectedListingsCount"] >= 2: reasons.append({"feature": "rejectedListingsCount", "value": values["rejectedListingsCount"], "reason": "Seller has multiple rejected listings"})
     if values["completedSalesCount"] == 0 and values["totalListings"] >= 5: reasons.append({"feature": "completedSalesCount", "value": 0, "reason": "No completed sales despite several listings"})
-    score = int(round(min(100, anomaly_score * 0.55 + min(len(reasons) * 12, 60))))
+    # Extreme underpricing alone should reach HIGH risk, so it carries extra weight on top of its reason.
+    severe_underpricing_bonus = 20 if under_fair >= 0.80 else 0
+    score = int(round(min(100, anomaly_score * 0.55 + min(len(reasons) * 12, 60) + severe_underpricing_bonus)))
     return {
         "listingId": payload["listingId"],
         "suspicionScore": score,
