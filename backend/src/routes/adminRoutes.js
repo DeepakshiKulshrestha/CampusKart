@@ -11,6 +11,7 @@ import {
   removeProduct,
 } from '../controllers/adminController.js';
 import { listReports, reviewReport } from '../controllers/reportController.js';
+import { listAiFlags, reviewAiFlag } from '../controllers/aiController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 // Mounted at /api/admin. Every route below requires a logged-in ADMIN.
@@ -36,5 +37,8 @@ router.put('/users/:id/restrict', restrictUser);
 
 router.get('/products', listProducts);
 router.put('/products/:id/remove', removeProduct);
+
+router.get('/ai-flags', listAiFlags);
+router.put('/ai-flags/:id/review', reviewAiFlag);
 
 export default router;

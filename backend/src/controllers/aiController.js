@@ -3,8 +3,17 @@
 // marketplace is unaffected.
 import Product from '../models/Product.model.js';
 import AiPrediction from '../models/AiPrediction.model.js';
+import AiFlag from '../models/AiFlag.model.js';
 import { callMl, toPriceFeatures } from '../services/mlClient.js';
-import { pricePredictionSchema, productIdBodySchema, validationError } from '../utils/validation.js';
+import { runFraudCheck } from '../services/fraudCheck.service.js';
+import {
+  pricePredictionSchema,
+  productIdBodySchema,
+  aiFlagQuerySchema,
+  reviewAiFlagSchema,
+  validationError,
+} from '../utils/validation.js';
+import { paginated, rejectInvalidId } from '../utils/http.js';
 
 // Turns errors from callMl (503 / 502) into JSON responses; anything else goes to the error handler
 function sendAiError(res, err, next) {
@@ -93,4 +102,82 @@ async function priceFairness(req, res, next) {
   }
 }
 
-export { sendAiError, pricePrediction, priceFairness };
+// POST /api/ai/suspicion-score { productId } (ADMIN) — run the fraud check now and return the score
+async function suspicionScore(req, res, next) {
+  const parsed = productIdBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) return validationError(res, parsed.error);
+  try {
+    const { score, flag, features } = await runFraudCheck(parsed.data.productId);
+    return res.json({ success: true, score, flagged: Boolean(flag), flagId: flag?._id ?? null, features });
+  } catch (err) {
+    if (err.status === 404) return res.status(404).json({ success: false, message: err.message });
+    return sendAiError(res, err, next);
+  }
+}
+
+// ---- Admin AI flag queue (mounted under /api/admin; the router already requires ADMIN) ----
+const FLAG_POPULATE = [
+  { path: 'productId', select: { title: 1, price: 1, originalPrice: 1, category: 1, status: 1, suspicionScore: 1, images: { $slice: 1 } } },
+  { path: 'sellerId', select: 'name email createdAt' },
+  { path: 'reviewedBy', select: 'name' },
+];
+
+// GET /api/admin/ai-flags?adminDecision=&page=&limit= — riskiest first
+async function listAiFlags(req, res, next) {
+  const parsed = aiFlagQuerySchema.safeParse(req.query);
+  if (!parsed.success) return validationError(res, parsed.error);
+  const { adminDecision, page, limit } = parsed.data;
+  const filter = adminDecision ? { adminDecision } : {};
+  try {
+    const [items, total] = await Promise.all([
+      AiFlag.find(filter)
+        .sort({ suspicionScore: -1, createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate(FLAG_POPULATE)
+        .lean(),
+      AiFlag.countDocuments(filter),
+    ]);
+    return res.json(paginated(items, total, page, limit));
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PUT /api/admin/ai-flags/:id/review { adminDecision CONFIRMED|DISMISSED, adminNote?, removeListing? }
+// The AI never removes anything by itself: only this admin action can.
+async function reviewAiFlag(req, res, next) {
+  if (rejectInvalidId(req, res, 'flag')) return;
+  const parsed = reviewAiFlagSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return validationError(res, parsed.error);
+  const { adminDecision, adminNote, removeListing } = parsed.data;
+
+  try {
+    const flag = await AiFlag.findById(req.params.id);
+    if (!flag) return res.status(404).json({ success: false, message: 'Flag not found' });
+    if (flag.adminDecision !== 'PENDING') {
+      return res.status(409).json({ success: false, message: `This flag was already ${flag.adminDecision.toLowerCase()}` });
+    }
+
+    flag.adminDecision = adminDecision;
+    flag.reviewedBy = req.user._id;
+    if (adminNote !== undefined) flag.adminNote = adminNote;
+    await flag.save(); // sets reviewedAt
+
+    let listingRemoved = false;
+    if (removeListing) {
+      const product = await Product.findById(flag.productId);
+      if (product && product.status !== 'REMOVED') {
+        product.status = 'REMOVED';
+        await product.save();
+        listingRemoved = true;
+      }
+    }
+    await flag.populate(FLAG_POPULATE);
+    return res.json({ success: true, flag, listingRemoved });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export { sendAiError, pricePrediction, priceFairness, suspicionScore, listAiFlags, reviewAiFlag };

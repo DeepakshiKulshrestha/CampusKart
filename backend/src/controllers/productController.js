@@ -1,5 +1,6 @@
 import Product from '../models/Product.model.js';
 import { uploadImages, deleteImages } from '../services/cloudinary.js';
+import { scheduleFraudCheck } from '../services/fraudCheck.service.js';
 import {
   createProductSchema,
   updateProductSchema,
@@ -8,6 +9,13 @@ import {
   validationError,
 } from '../utils/validation.js';
 import { OBJECT_ID, paginated } from '../utils/http.js';
+
+// The AI suspicion score is for admins only (blueprint: never shown to the public, and a seller who could
+// see it could learn to game it). Admins see it through /api/admin/products and /api/admin/ai-flags.
+function withoutScore(doc) {
+  const { suspicionScore, ...rest } = typeof doc.toObject === 'function' ? doc.toObject() : doc;
+  return rest;
+}
 
 const SORTS = {
   newest: { createdAt: -1, _id: -1 },
@@ -48,7 +56,10 @@ async function createProduct(req, res, next) {
   try {
     images = await uploadImages(files);
     const product = await Product.create({ ...parsed.data, images, sellerId: req.user._id });
-    return res.status(201).json({ success: true, product });
+    res.status(201).json({ success: true, product: withoutScore(product) });
+    // AI suspicion check runs after the response is sent; if the ML service is down it is just skipped
+    scheduleFraudCheck(product._id);
+    return;
   } catch (err) {
     // Don't leave orphaned uploads behind when the product itself is rejected
     if (images.length) await deleteImages(images).catch((e) => console.error('[products] cleanup failed:', e.message));
@@ -90,7 +101,7 @@ async function getProducts(req, res, next) {
         .lean(),
       Product.countDocuments(filter),
     ]);
-    const items = rows.map(({ score, ...item }) => item);
+    const items = rows.map(({ score, suspicionScore, ...item }) => item);
     return res.json(paginated(items, total, page, limit));
   } catch (err) {
     next(err);
@@ -107,6 +118,7 @@ async function getMyProducts(req, res, next) {
   try {
     const [items, total] = await Promise.all([
       Product.find(filter)
+        .select('-suspicionScore')
         .sort(SORTS.newest)
         .skip((page - 1) * limit)
         .limit(limit)
@@ -125,7 +137,9 @@ async function getProductById(req, res, next) {
     return res.status(400).json({ success: false, message: 'Invalid product id' });
   }
   try {
-    const product = await Product.findOne({ _id: req.params.id, status: { $ne: 'REMOVED' } }).populate('sellerId', 'name');
+    const product = await Product.findOne({ _id: req.params.id, status: { $ne: 'REMOVED' } })
+      .select('-suspicionScore')
+      .populate('sellerId', 'name');
     if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
     return res.json({ success: true, product });
   } catch (err) {
@@ -150,7 +164,7 @@ async function updateProduct(req, res, next) {
     const changes = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== undefined));
     product.set(changes);
     await product.save();
-    return res.json({ success: true, product });
+    return res.json({ success: true, product: withoutScore(product) });
   } catch (err) {
     if (err.name === 'ValidationError') return res.status(400).json({ success: false, message: err.message });
     next(err);
@@ -183,7 +197,7 @@ async function markSold(req, res, next) {
 
     product.status = 'SOLD';
     await product.save();
-    return res.json({ success: true, product });
+    return res.json({ success: true, product: withoutScore(product) });
   } catch (err) {
     next(err);
   }
