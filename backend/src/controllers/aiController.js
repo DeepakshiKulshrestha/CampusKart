@@ -39,7 +39,7 @@ async function pricePrediction(req, res, next) {
     AiPrediction.log({
       sellerId: req.user._id,
       endpoint: 'predict-price',
-      inputFeatures: { ...parsed.data },
+      inputFeatures: { ...parsed.data, itemType: parsed.data.title }, // stored as itemType (the ML field name)
       predictedPrice: ai.predictedPrice,
       fairPriceRange: ai.fairPriceRange,
       modelVersion: ai.modelVersion,
@@ -78,6 +78,7 @@ async function priceFairness(req, res, next) {
       sellerId: product.sellerId,
       endpoint: 'price-fairness',
       inputFeatures: {
+        itemType: product.title,
         category: product.category,
         brand: product.brand,
         originalPrice: product.originalPrice,
@@ -190,8 +191,10 @@ const CANDIDATE_LIMIT = 100;
 // Same fields as GET /api/products items, so the frontend can render them with the same card
 const RESULT_FIELDS = 'title price originalPrice age condition category brand location status images sellerId createdAt';
 
-// 1. Candidates: real semantic retrieval (product_embeddings + Hugging Face) when it is configured,
-//    otherwise MongoDB $text keyword search with the same filters
+// 1. Candidates: real semantic retrieval (product_embeddings + Hugging Face) when it is configured.
+//    Otherwise MongoDB $text keyword hits, plus (in `extra`) the newest other listings matching the filters,
+//    so the ML service can still find items that match by meaning but share no words with the query.
+//    `extra` is only shown if the ML service ranks it; on its own it would just be unrelated listings.
 async function findCandidates({ query, category, condition, location, minPrice, maxPrice }) {
   const semanticReady = provider() === 'huggingface' && (await ProductEmbedding.estimatedDocumentCount()) > 0;
   if (semanticReady) {
@@ -208,20 +211,24 @@ async function findCandidates({ query, category, condition, location, minPrice, 
     }
   }
 
-  const filter = { status: 'AVAILABLE', $text: { $search: query } };
-  if (category) filter.category = category;
-  if (condition) filter.condition = condition;
-  if (location) filter.location = location;
+  const base = { status: 'AVAILABLE' };
+  if (category) base.category = category;
+  if (condition) base.condition = condition;
+  if (location) base.location = location;
   if (minPrice !== undefined || maxPrice !== undefined) {
-    filter.price = {};
-    if (minPrice !== undefined) filter.price.$gte = minPrice;
-    if (maxPrice !== undefined) filter.price.$lte = maxPrice;
+    base.price = {};
+    if (minPrice !== undefined) base.price.$gte = minPrice;
+    if (maxPrice !== undefined) base.price.$lte = maxPrice;
   }
-  const products = await Product.find(filter, { score: { $meta: 'textScore' } })
+  const products = await Product.find({ ...base, $text: { $search: query } }, { score: { $meta: 'textScore' } })
     .sort({ score: { $meta: 'textScore' } })
     .limit(CANDIDATE_LIMIT)
     .lean();
-  return { engine: 'keyword-fallback', products };
+  const extra = await Product.find({ ...base, _id: { $nin: products.map((p) => p._id) } })
+    .sort({ createdAt: -1 })
+    .limit(Math.max(0, CANDIDATE_LIMIT - products.length))
+    .lean();
+  return { engine: 'keyword-fallback', products, extra };
 }
 
 // POST /api/ai/semantic-search (public) { query, category?, condition?, location?, minPrice?, maxPrice?, limit? }
@@ -231,20 +238,22 @@ async function semanticSearch(req, res, next) {
   const { query, limit, ...filters } = parsed.data;
 
   try {
-    let { engine, products } = await findCandidates({ query, ...filters });
+    let { engine, products, extra = [] } = await findCandidates({ query, ...filters });
 
-    // 2. Optional re-ranking by the ML service (needs HF_TOKEN there). If it fails, keep the retrieval order.
-    if (products.length > 1) {
+    // 2. Re-ranking by meaning in the ML service (runs locally there, no token needed).
+    //    If it fails, keep the retrieval order and drop the unranked `extra` listings.
+    const pool = [...products, ...extra];
+    if (pool.length > 1 || extra.length) {
       try {
-        const ranked = await callMl('/semantic-search', { query, products: toMlCandidates(products), limit: Math.min(products.length, 100) });
-        const byId = new Map(products.map((p) => [String(p._id), p]));
+        const ranked = await callMl('/semantic-search', { query, products: toMlCandidates(pool), limit: Math.min(pool.length, 100) });
+        const byId = new Map(pool.map((p) => [String(p._id), p]));
         const reordered = (ranked.results || []).map((r) => byId.get(String(r.id))).filter(Boolean);
         if (reordered.length) {
           products = reordered;
-          engine = `${engine}+ml-rerank`;
+          engine = extra.length ? 'keyword+recent-candidates+ml-rerank' : `${engine}+ml-rerank`;
         }
       } catch {
-        // AI service down or HF_TOKEN missing: retrieval order stands, and `engine` says so honestly
+        // AI service down: keyword order stands, and `engine` ("keyword-fallback") says so honestly
       }
     }
 
